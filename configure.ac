@@ -20,7 +20,7 @@ AC_PREREQ([2.68])
 #   fix_ca_minor_version = 0;
 #
 m4_define([fix_ca_major_version], [3.0])
-m4_define([fix_ca_minor_version], [2])
+m4_define([fix_ca_minor_version], [3])
 m4_define([fix_ca_version],[fix_ca_major_version.fix_ca_minor_version])
 m4_define([fix_ca_package_name], [gimp-fix-ca])
 
@@ -62,16 +62,9 @@ m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],[AC_SUBST([AM_DEFAULT_VERBOS
 
 #--------------------------------------------------------------------------
 # The following is for benefit of links using paths relative to top_srcdir.
-CPPFLAGS="${CPPFLAGS} AS_ESCAPE([-I${top_builddir}]) AS_ESCAPE([-I${top_srcdir}])"
+AC_SUBST([CPPFLAGS],["${CPPFLAGS}"])
 
 #--------------------------------------------------------------------------
-# Check for libraries.
-# NOTE: Some distros don't have /usr/local included in the /etc/ld.so PATH,
-# so, PKG_CHECK_MODULES may not find libraries you compile into /usr/local,
-# therefore use AC_CHECK_HEADERS, AC_SEARCH_LIBS, AC_CHECK_FUNC for backup.
-#
-# NOTE: some older scripts have defective SEARCH, so we do CHECK if failed.
-
 # Check for math.h include and math library (some OSes have -lm built-in).
 have_libm=maybe
 AC_CHECK_HEADER([math.h],
@@ -99,11 +92,12 @@ AM_CONDITIONAL([HAVEGIMPTOOL],[test "${GIMPTOOL}"x != x])
 
 #--------------------------------------------------------------------------
 # Pass variables to fix-ca-config.h
-AC_DEFINE([FIX_CA_MAJOR_VERSION],["fix_ca_major_version"],[gimp-fix_ca-plugin major version])
-AC_DEFINE([FIX_CA_MINOR_VERSION],["fix_ca_minor_version"],[gimp-fix_ca-plugin minor version])
+AC_DEFINE([FIX_CA_MAJOR_VERSION],["fix_ca_major_version"],[gimp-fix-ca-plugin major version])
+AC_DEFINE([FIX_CA_MINOR_VERSION],["fix_ca_minor_version"],[gimp-fix-ca-plugin minor version])
 
 #--------------------------------------------------------------------------
 # Pass variables to MAKEFILE.AM
+AC_SUBST([CPPFLAGS],["${CPPFLAGS}"])
 AC_SUBST([FIX_CA_MAJOR_VERSION],[fix_ca_major_version])
 AC_SUBST([FIX_CA_MINOR_VERSION],[fix_ca_minor_version])
 AC_SUBST([FIX_CA_VERSION],[fix_ca_version])
@@ -132,6 +126,7 @@ Configuration:
   Build code location	${builddir}
   docs root dir		${datarootdir}
   Compiler		${CC}
+  CPPFLAGS		${CPPFLAGS}
   GIMP_CFLAGS		${GIMP_CFLAGS}
   GIMP_LIBS		${GIMP_LIBS}
   LIBS			${LIBS}

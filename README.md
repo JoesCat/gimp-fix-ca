@@ -16,8 +16,6 @@ and is distributed under [GNU General Public License Version 2](COPYING) (GPLv2)
 
 ## Download and building Fix-CA
 
-Fix-CA can be downloaded from here.
-
 Just get the C source file.
 To compile and install the plug-in, you need the development library 
 for Gimp.  Usually it's in gimp-devel package in your distribution.
@@ -53,8 +51,8 @@ lateral and directional.
 
 Lateral chromatic aberration appears due to lens imperfection.
 For this type of CA, the center of the image has no CA and the CA
-gradually increase toward the border.  So the original image, rather than a
-cropped version, should be used to eliminate the CA.
+gradually increases toward the borders.  The original camera image, rather than a
+cropped version, should be used to eliminate this type of CA.
 
 Below left is the image used to demonstrate Fix-CA plug-in capability
 [full sized original here](img-fix-ca/full-Wat_Pathum_Wanaram.jpg) available under the
@@ -82,9 +80,9 @@ resulting change.
 In the dialog box, setting red to -1.5 will shift the red channel inward to
 the maximum of 1.5 pixels. Here the positive number means moving outward,
 while the negative number means inward. Since the orientation of this photo
-is portrait, the red channel of top and bottom border will movedby 1.5 pixels.
+is portrait, the red channel of top and bottom border will moved by 1.5 pixels.
 Pixels at the inner part the red channel will be moved less while the pixels
-at the center of image will not be moved at all. (For landscape image, the
+at the center of image will not be moved at all. (For a landscape image, the
 left and right border will be moved by 1.5 pixels instead).
 The interpolation parameter controls how the plug-in deals with fractional
 pixels, for example, if the plug-in decides to move an image pixel by 0.8
@@ -107,7 +105,7 @@ Just remember to correct CA before cropping.
 
 In directional chromatic aberration, the amount of CA is assumed to be the
 same throughout the image.  This can happen, for example, when photographing
-fishes in an aquarium.  Light travels through dense water and glass and bends
+fish in an aquarium.  Light travels through dense water and glass and bends
 differently depending on the color.  This CA correction mode is introduced in
 Fix-CA version 3.0.0. You can specify the amount of shift for blue and red
 along both X and Y axis.
@@ -128,6 +126,7 @@ The picture below shows (50% zoom) corrected image of the interested region.
 
 ## Version History
 
+- 3.0.3 (October 8, 2022) autoconf/automake/configure/make added for building fix.ca
 - 3.0.2 (December 22, 2007) Add the missing tile cache that speed up preview.
 - 3.0.1 (July 5, 2007) Fix a bug involving image row cache that cause bad CA correction when the number of pixel moved is large.
 - 3.0.0 (July 3, 2007) Add CA fix in X and Y axis.
@@ -141,4 +140,4 @@ The picture below shows (50% zoom) corrected image of the interested region.
 A long target is for the plug-in to work automatically without
 requiring user to carefully choose the amount of shift.
 
-Original Web page content and pictures are copyrighted (c) 2006, 2007 by Kriang Lerdsuwanakij.
+Note: The Original Web page content and pictures are copyrighted (c) 2006, 2007 by Kriang Lerdsuwanakij.

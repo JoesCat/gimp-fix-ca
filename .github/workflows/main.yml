@@ -1,0 +1,34 @@
+name: CI
+on: [push,pull_request]
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        choiceL: [--disable-silent-rules, --enable-silent-rules]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create configure
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install autoconf automake libtool gcc libgimp2.0-dev
+          autoreconf -i
+          automake
+      - name: Choose configure
+        run: ./configure ${{ matrix.choiceL }}
+      - name: Make gimp-plugin-fix-ca
+        run: make
+      - name: Test make strip
+        if: matrix.choiceL == '--disable-silent-rules'
+        run: make strip
+      - name: Test user-level install/uninstall
+        if: matrix.choiceL == '--disable-silent-rules'
+        run: |
+          make install-user
+          make uninstall-user
+      - name: Test make install GIMP shared plugin
+        if: matrix.choiceL == '--disable-silent-rules'
+        run: |
+          sudo make install
+          sudo make uninstall
