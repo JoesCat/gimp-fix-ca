@@ -91,6 +91,16 @@ AC_SUBST(GIMP_DATADIR)
 AM_CONDITIONAL([HAVEGIMPTOOL],[test "${GIMPTOOL}"x != x])
 
 #--------------------------------------------------------------------------
+# Enable debug_time mode
+AC_ARG_ENABLE([debugtime],
+  [AS_HELP_STRING([--enable-debugtime],
+    [Enable debugging time printf mode on commandline @<:@default=no@:>@])],
+  [],[enable_debugtime=no])
+if test "x$enable_debugtime" = xyes || test "x$enable_debugtime" = xtrue ; then
+  AC_DEFINE([DEBUG_TIME],1,[Define if debugging time using printf.])
+fi
+
+#--------------------------------------------------------------------------
 # Pass variables to fix-ca-config.h
 AC_DEFINE([FIX_CA_MAJOR_VERSION],["fix_ca_major_version"],[gimp-fix-ca-plugin major version])
 AC_DEFINE([FIX_CA_MINOR_VERSION],["fix_ca_minor_version"],[gimp-fix-ca-plugin minor version])
@@ -103,6 +113,18 @@ AC_SUBST([FIX_CA_MINOR_VERSION],[fix_ca_minor_version])
 AC_SUBST([FIX_CA_VERSION],[fix_ca_version])
 AC_SUBST([FIX_CA_PACKAGE_NAME],[fix_ca_package_name])
 AC_SUBST([HOST],["$host"])
+
+dnl Do this here since automake can't process 'if/else/endif in Makefile.am
+SNIPPET='
+noinst_PROGRAMS =
+ifeq ($(shell id -u),0)
+  bindir = $(GIMP_LIBDIR)/plug-ins/fix-ca
+else
+  noinst_PROGRAMS += fix-ca
+endif
+'
+AC_SUBST([SNIPPET])
+AM_SUBST_NOTMAKE([SNIPPET])
 
 #--------------------------------------------------------------------------
 # Put ifndef wrapper on fix-ca-config.h so we don't call it repeatedly.

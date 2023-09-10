@@ -19,6 +19,7 @@
 */
 
 #define _ISOC99_SOURCE
+#include "fix-ca-config.h"
 #include <string.h>
 #include <math.h>
 
@@ -123,8 +124,9 @@ void	query (void)
 		{ GIMP_PDB_FLOAT, "y_red", "Red amount (y axis)" }
 	};
 
+#define FIX_CA_VERSION "Fix-CA Version " FIX_CA_MAJOR_VERSION "." FIX_CA_MINOR_VERSION
 	gimp_install_procedure (PROCEDURE_NAME,
-				"Fix-CA Version 3.0.2",
+				FIX_CA_VERSION,
 				"Fix chromatic aberration caused by imperfect "
 				"lens.  It works by shifting red and blue "
 				"components of image pixels in the specified "
@@ -376,7 +378,7 @@ gboolean	fix_ca_dialog (GimpDrawable *drawable, FixCaParams *params)
 			  G_CALLBACK (gimp_preview_invalidate),
 			  preview);
 
-	frame = gimp_frame_new ("X axis");
+	frame = gimp_frame_new ("Directional, X axis");
 	gtk_box_pack_start (GTK_BOX (main_vbox), frame, FALSE, FALSE, 0);
 	gtk_widget_show (frame);
 
@@ -412,7 +414,7 @@ gboolean	fix_ca_dialog (GimpDrawable *drawable, FixCaParams *params)
 			  G_CALLBACK (gimp_preview_invalidate),
 			  preview);
 
-	frame = gimp_frame_new ("Y axis");
+	frame = gimp_frame_new ("Directional, Y axis");
 	gtk_box_pack_start (GTK_BOX (main_vbox), frame, FALSE, FALSE, 0);
 	gtk_widget_show (frame);
 
@@ -995,7 +997,7 @@ void	fix_ca_region (GimpDrawable *drawable,
 	gettimeofday (&tv2, NULL);
 
 	sec = tv2.tv_sec - tv1.tv_sec + (tv2.tv_usec - tv1.tv_usec)/1000000.0;
-	printf ("Elapsed time: %.2f\n", sec);
+	printf ("fix-ca Elapsed time: %.2f\n", sec);
 #endif
 }
 

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2023 Joe Da Silva <digital@joescat.com> -->
+<component type="addon">
+  <id>org.gimp.extension.fix-ca</id>
+  <extends>org.gimp.GIMP</extends>
+  <name>Fix Chromatic Aberration</name>
+  <summary>[plug-in to correct Lateral or Directional Chromatic Aberration (CA)]</summary>
+  <description>
+    <p>
+    This extension helps the user correct Lateral Chromatic Aberration (CA) due
+    to different color wavelengths travelling through a lens, or Directional CA,
+    where the amount of CA is assumed to be the same throughout the image due to
+    light travelling through dense material such as glass or water.
+    </p>
+  </description>
+  <url type="homepage">https://github.com/JoesCat/gimp-fix-ca</url>
+  <url type="help">https://github.com/JoesCat/gimp-fix-ca#readme</url>
+  <url type="bugtracker">https://github.com/JoesCat/gimp-fix-ca/issues</url>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0+</project_license>
+  <releases>
+   <release version="3.0.3" date="2022-10-09" />
+  </releases>
+  <requires>
+   <id version="2.4" compare="ge">org.gimp.GIMP</id>
+  </requires>
+  <metadata>
+   <value key="GIMP::plug-in-path">fix-ca</value>
+  </metadata>
+</component>

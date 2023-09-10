@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        choiceL: [--disable-silent-rules, --enable-silent-rules]
+        choiceL: [--disable-silent-rules, --enable-silent-rules --enable-debugtime]
     steps:
       - uses: actions/checkout@v2
       - name: Create configure
@@ -32,3 +32,6 @@ jobs:
         run: |
           sudo make install
           sudo make uninstall
+      - name: Test make distcheck
+        if: matrix.choiceL == '--disable-silent-rules'
+        run: make distcheck
