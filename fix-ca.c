@@ -19,7 +19,12 @@
 */
 
 #define _ISOC99_SOURCE
+#if __has_include("fix-ca-config.h")
 #include "fix-ca-config.h"
+#else
+#define FIX_CA_VERSION "fix-CA 3.0.3"
+#endif
+
 #include <string.h>
 #include <math.h>
 
@@ -80,7 +85,7 @@ static void	run (const gchar *name, gint nparams,
 		     const GimpParam  *param, gint *nreturn_vals,
 		     GimpParam **return_vals);
 static void	fix_ca (GimpDrawable *drawable, FixCaParams *params);
-static void	fix_ca_region (GimpDrawable *drawable, 
+static void	fix_ca_region (GimpDrawable *drawable,
 			       GimpPixelRgn *srcPTR, GimpPixelRgn *dstPTR,
 			       gint bytes, FixCaParams *params,
 			       gint x1, gint x2, gint y1, gint y2,
@@ -109,7 +114,7 @@ GimpPlugInInfo PLUG_IN_INFO = {
 
 MAIN ()
 
-void	query (void)
+static void query (void)
 {
 	static GimpParamDef args[] = {
 		{ GIMP_PDB_INT32, "run_mode", "Interactive, non-interactive" },
@@ -149,26 +154,27 @@ void	query (void)
 		gimp_plugin_menu_register (PROCEDURE_NAME, "<Image>/Filters/Colors");
 }
 
-void	run (const gchar *name, gint nparams,
-	     const GimpParam *param, gint *nreturn_vals,
-	     GimpParam **return_vals)
+static void run (const gchar *name, gint nparams,
+		 const GimpParam *param, gint *nreturn_vals,
+		 GimpParam **return_vals)
 {
 	static GimpParam values[1];
 	GimpDrawable	*drawable;
 	gint32		image_ID;
 	GimpRunMode	run_mode;
-	GimpPDBStatusType status = GIMP_PDB_SUCCESS;
+	GimpPDBStatusType status;
 	FixCaParams fix_ca_params;
 
 	*nreturn_vals = 1;
 	*return_vals  = values;
-                      
+	values[0].type = GIMP_PDB_STATUS;
+	status = GIMP_PDB_SUCCESS;
+
 	run_mode = param[0].data.d_int32;
 	image_ID = param[1].data.d_int32;
 	drawable = gimp_drawable_get (param[2].data.d_drawable);
 	gimp_tile_cache_ntiles (2 * MAX (drawable->width  / gimp_tile_width () + 1 ,
 					 drawable->height / gimp_tile_height () + 1));
-                                     
 
 	fix_ca_params.blue = fix_ca_params_default.blue;
 	fix_ca_params.red = fix_ca_params_default.red;
@@ -179,59 +185,55 @@ void	run (const gchar *name, gint nparams,
 	fix_ca_params.y_blue = fix_ca_params_default.y_blue;
 	fix_ca_params.y_red = fix_ca_params_default.y_red;
 
-	if (strcmp (name, PROCEDURE_NAME) == 0) {
-		switch (run_mode) {
-			case GIMP_RUN_NONINTERACTIVE:
-				if (nparams < 5 || nparams > 10)
-					status = GIMP_PDB_CALLING_ERROR;
-				else {
-					fix_ca_params.blue = param[3].data.d_float;
-					fix_ca_params.red = param[4].data.d_float;
-					if (nparams < 6)
-						fix_ca_params.interpolation
-							= GIMP_INTERPOLATION_NONE;
-					else if (param[5].data.d_int8 > 2)
-						status = GIMP_PDB_CALLING_ERROR;
-					else
-						fix_ca_params.interpolation
-							= param[5].data.d_int8;
-
-					if (nparams < 7)
-						fix_ca_params.x_blue = 0;
-					else
-						fix_ca_params.x_blue = param[6].data.d_float;
-					if (nparams < 8)
-						fix_ca_params.x_red = 0;
-					else
-						fix_ca_params.x_red = param[7].data.d_float;
-					if (nparams < 9)
-						fix_ca_params.y_blue = 0;
-					else
-						fix_ca_params.y_blue = param[8].data.d_float;
-					if (nparams < 10)
-						fix_ca_params.y_red = 0;
-					else
-						fix_ca_params.y_red = param[9].data.d_float;
-				}
-				break;
-
-			case GIMP_RUN_INTERACTIVE:
-				gimp_get_data (DATA_KEY_VALS, &fix_ca_params);
-
-				if (! fix_ca_dialog (drawable, &fix_ca_params))
-					status = GIMP_PDB_CANCEL;
-				break;
-
-			case GIMP_RUN_WITH_LAST_VALS:
-				gimp_get_data (DATA_KEY_VALS, &fix_ca_params);
-				break;
-
-			default:
-				break;
-		}
+	if (strcmp(name, PROCEDURE_NAME) != 0 || \
+	    ((run_mode == GIMP_RUN_NONINTERACTIVE) && (nparams < 5 || nparams > 10))) {
+		values[0].data.d_status = GIMP_PDB_CALLING_ERROR;
+		return;
 	}
-	else
-		status = GIMP_PDB_CALLING_ERROR;
+
+	switch (run_mode) {
+		case GIMP_RUN_NONINTERACTIVE:
+			fix_ca_params.blue = param[3].data.d_float;
+			fix_ca_params.red = param[4].data.d_float;
+			if (nparams < 6)
+				fix_ca_params.interpolation = GIMP_INTERPOLATION_NONE;
+			else if (param[5].data.d_int8 > 2)
+				status = GIMP_PDB_CALLING_ERROR;
+			else
+				fix_ca_params.interpolation = param[5].data.d_int8;
+
+			if (nparams < 7)
+				fix_ca_params.x_blue = 0;
+			else
+				fix_ca_params.x_blue = param[6].data.d_float;
+			if (nparams < 8)
+				fix_ca_params.x_red = 0;
+			else
+				fix_ca_params.x_red = param[7].data.d_float;
+			if (nparams < 9)
+				fix_ca_params.y_blue = 0;
+			else
+				fix_ca_params.y_blue = param[8].data.d_float;
+			if (nparams < 10)
+				fix_ca_params.y_red = 0;
+			else
+				fix_ca_params.y_red = param[9].data.d_float;
+			break;
+
+		case GIMP_RUN_INTERACTIVE:
+			gimp_get_data (DATA_KEY_VALS, &fix_ca_params);
+
+			if (! fix_ca_dialog (drawable, &fix_ca_params))
+				status = GIMP_PDB_CANCEL;
+			break;
+
+		case GIMP_RUN_WITH_LAST_VALS:
+			gimp_get_data (DATA_KEY_VALS, &fix_ca_params);
+			break;
+
+		default:
+			break;
+	}
 
 	if (status == GIMP_PDB_SUCCESS) {
 		fix_ca (drawable, &fix_ca_params);
@@ -244,11 +246,10 @@ void	run (const gchar *name, gint nparams,
 		gimp_drawable_detach (drawable);
 	}
 
-	values[0].type = GIMP_PDB_STATUS;
 	values[0].data.d_status = status;
 }
 
-void	fix_ca (GimpDrawable *drawable, FixCaParams *params)
+static void fix_ca (GimpDrawable *drawable, FixCaParams *params)
 {
 	GimpPixelRgn srcPR, destPR;
 	gint         x1, y1, x2, y2;
@@ -270,7 +271,7 @@ void	fix_ca (GimpDrawable *drawable, FixCaParams *params)
 	gimp_drawable_update (drawable->drawable_id, x1, y1, x2 - x1, y2 - y1);
 }
 
-gboolean	fix_ca_dialog (GimpDrawable *drawable, FixCaParams *params)
+static gboolean fix_ca_dialog (GimpDrawable *drawable, FixCaParams *params)
 {
 	GtkWidget *dialog;
 	GtkWidget *main_vbox;
@@ -459,7 +460,7 @@ gboolean	fix_ca_dialog (GimpDrawable *drawable, FixCaParams *params)
 	return run;
 }
 
-void	preview_update (GimpPreview *preview, FixCaParams *params)
+static void preview_update (GimpPreview *preview, FixCaParams *params)
 {
 	GimpDrawable *drawable;
 	gint	x1, x2, y1, y2, width, height;
@@ -489,14 +490,14 @@ void	preview_update (GimpPreview *preview, FixCaParams *params)
 	gimp_drawable_preview_draw_region (GIMP_DRAWABLE_PREVIEW (preview), &destPR);
 }
 
-/* Round to nearest integer. Only works correctly when d >= 0. 
+/* Round to nearest integer. Only works correctly when d >= 0.
    For d < 0, the expression should be return (int)(d - 0.5); */
-int	round_nearest (gdouble d)
+static int round_nearest (gdouble d)
 {
 	return (int)(d + 0.5);
 }
 
-int	absolute (gint i)
+static int absolute (gint i)
 {
 	if (i >= 0)
 		return i;
@@ -504,7 +505,7 @@ int	absolute (gint i)
 		return -i;
 }
 
-int	scale (gint i, gint size, gdouble scale_val, gdouble shift_val)
+static int scale (gint i, gint size, gdouble scale_val, gdouble shift_val)
 {
 	gdouble d = (i - size/2) * scale_val + size/2 - shift_val;
 	gint j = round_nearest (d);
@@ -516,7 +517,7 @@ int	scale (gint i, gint size, gdouble scale_val, gdouble shift_val)
 		return j;
 }
 
-double	scale_d (gint i, gint size, gdouble scale_val, gdouble shift_val)
+static double scale_d (gint i, gint size, gdouble scale_val, gdouble shift_val)
 {
 	gdouble d = (i - size/2) * scale_val + size/2 - shift_val;
 	if (d <= 0.0)
@@ -527,7 +528,7 @@ double	scale_d (gint i, gint size, gdouble scale_val, gdouble shift_val)
 		return d;
 }
 
-guchar *load_data (GimpPixelRgn *srcPTR,
+static guchar *load_data (GimpPixelRgn *srcPTR,
 		   guchar *src[SOURCE_ROWS], gint src_row[SOURCE_ROWS],
 		   gint src_iter[SOURCE_ROWS], gint band_adj,
 		   gint band_1, gint band_2, gint y, gint iter)
@@ -566,7 +567,7 @@ guchar *load_data (GimpPixelRgn *srcPTR,
 	return src[row_best];
 }
 
-int	clip (gdouble d)
+static int clip (gdouble d)
 {
 	gint	i = round_nearest (d);
 	if (i <= 0)
@@ -577,14 +578,14 @@ int	clip (gdouble d)
 		return i;
 }
 
-int	bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy)
+static int bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy)
 {
 	double d = (1-dy) * (xy + dx * (x1y-xy))
 		   + dy * (xy1 + dx * (x1y1-xy1));
 	return clip (d);
 }
 
-double	cubic (gint xm1, gint x, gint xp1, gint xp2, gdouble dx)
+static double cubic (gint xm1, gint x, gint xp1, gint xp2, gdouble dx)
 {
 	/* Catmull-Rom from Gimp gimpdrawable-transform.c */
 	return ((( ( - xm1 + 3 * x - 3 * xp1 + xp2 ) * dx +
@@ -592,11 +593,11 @@ double	cubic (gint xm1, gint x, gint xp1, gint xp2, gdouble dx)
                                 ( - xm1 + xp1 ) ) * dx + (x + x) ) / 2.0;
 }
 
-void	fix_ca_region (GimpDrawable *drawable, 
-		       GimpPixelRgn *srcPTR, GimpPixelRgn *dstPTR,
-		       gint bytes, FixCaParams *params,
-		       gint x1, gint x2, gint y1, gint y2,
-		       gboolean show_progress)
+static void fix_ca_region (GimpDrawable *drawable,
+			   GimpPixelRgn *srcPTR, GimpPixelRgn *dstPTR,
+			   gint bytes, FixCaParams *params,
+			   gint x1, gint x2, gint y1, gint y2,
+			   gboolean show_progress)
 {
 	guchar  *src[SOURCE_ROWS];
 	gint	src_row[SOURCE_ROWS];
@@ -1001,7 +1002,7 @@ void	fix_ca_region (GimpDrawable *drawable,
 #endif
 }
 
-void	fix_ca_help (const gchar *help_id, gpointer help_data)
+static void fix_ca_help (const gchar *help_id, gpointer help_data)
 {
 	gimp_message ("Select the amount in pixels to shift for blue "
 		      "and red components of image.  "
