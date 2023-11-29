@@ -65,6 +65,47 @@ m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],[AC_SUBST([AM_DEFAULT_VERBOS
 AC_SUBST([CPPFLAGS],["${CPPFLAGS}"])
 
 #--------------------------------------------------------------------------
+# Compiler and Linker flags to override auto detection and insertion.
+# Use CFLAGS if you want to add more in addition to autodetect.
+AC_ARG_VAR([FCA_CFLAGS],[C compiler flags overriding automatic detection])
+AC_ARG_VAR([FCA_LIB],[Linker flags overriding automatic detection])
+
+# Auto detect and add usable compiler warnings (skip if FCA_CFLAGS="").
+WCFLAGS=""
+AC_LANG_PUSH([C])
+AX_CHECK_COMPILE_FLAG([-Wall],[WCFLAGS="$WCFLAGS -Wall"])
+AX_CHECK_COMPILE_FLAG([-Wextra],[WCFLAGS="$WCFLAGS -Wextra"])
+AX_CHECK_COMPILE_FLAG([-Wcast-align],[WCFLAGS="$WCFLAGS -Wcast-align"])
+AX_CHECK_COMPILE_FLAG([-Wbad-function-cast],[WCFLAGS="$WCFLAGS -Wbad-function-cast"])
+AX_CHECK_COMPILE_FLAG([-Wc++-compat],[WCFLAGS="$WCFLAGS -Wc++-compat"])
+AX_CHECK_COMPILE_FLAG([-Wmissing-prototypes],[WCFLAGS="$WCFLAGS -Wmissing-prototypes"])
+AX_CHECK_COMPILE_FLAG([-Wunused],[WCFLAGS="$WCFLAGS -Wunused"])
+AX_CHECK_COMPILE_FLAG([-Wdeprecated-declarations],[WCFLAGS="$WCFLAGS -Wdeprecated-declarations"])
+AX_CHECK_COMPILE_FLAG([-Wconversion],[WCFLAGS="$WCFLAGS -Wconversion"])
+AX_CHECK_COMPILE_FLAG([-Wsign-conversion],[WCFLAGS="$WCFLAGS -Wsign-conversion"])
+AX_CHECK_COMPILE_FLAG([-Wformat=2],[WCFLAGS="$WCFLAGS -Wformat=2"])
+AX_CHECK_COMPILE_FLAG([-Wformat-security],[WCFLAGS="$WCFLAGS -Wformat-security"])
+AX_CHECK_COMPILE_FLAG([-fno-common],[WCFLAGS="$WCFLAGS -fno-common"])
+AX_CHECK_COMPILE_FLAG([-Wmissing-declarations],[WCFLAGS="$WCFLAGS -Wmissing-declarations"])
+AX_CHECK_COMPILE_FLAG([-Wstrict-prototypes],[WCFLAGS="$WCFLAGS -Wstrict-prototypes"])
+AX_CHECK_COMPILE_FLAG([-fPIC],[WCFLAGS="$WCFLAGS -fPIC"])
+AX_CHECK_COMPILE_FLAG([-Wstrict-overflow],[WCFLAGS="$WCFLAGS -Wstrict-overflow"])
+AX_CHECK_COMPILE_FLAG([-Wpointer-arith],[WCFLAGS="$WCFLAGS -Wpointer-arith"])
+AX_CHECK_COMPILE_FLAG([-Wcast-qual],[WCFLAGS="$WCFLAGS -Wcast-qual"])
+AX_CHECK_COMPILE_FLAG([-Wcast-align],[WCFLAGS="$WCFLAGS -Wcast-align"])
+AX_CHECK_COMPILE_FLAG([-Wpadded],[WCFLAGS="$WCFLAGS -Wpadded"])
+AX_CHECK_COMPILE_FLAG([-Woverlength-strings],[WCFLAGS="$WCFLAGS -Woverlength-strings"])
+AC_LANG_POP
+# Skip if replacing with FCA_LIB instead.
+WLSLIB=""
+if test -z $FCA_LIB ; then
+   WLSLIB="${WCFLAGS}"
+fi
+if test "${FCA_CFLAGS}"x != x; then
+   WCFLAGS=""
+fi
+
+#--------------------------------------------------------------------------
 # Check for math.h include and math library (some OSes have -lm built-in).
 have_libm=maybe
 AC_CHECK_HEADER([math.h],
@@ -108,6 +149,10 @@ AC_DEFINE([FIX_CA_MINOR_VERSION],["fix_ca_minor_version"],[gimp-fix-ca-plugin mi
 #--------------------------------------------------------------------------
 # Pass variables to MAKEFILE.AM
 AC_SUBST([CPPFLAGS],["${CPPFLAGS}"])
+AC_SUBST([LS_CFLAGS])
+AC_SUBST([LS_LIB])
+AC_SUBST([WCFLAGS])
+AC_SUBST([WLSLIB])
 AC_SUBST([FIX_CA_MAJOR_VERSION],[fix_ca_major_version])
 AC_SUBST([FIX_CA_MINOR_VERSION],[fix_ca_minor_version])
 AC_SUBST([FIX_CA_VERSION],[fix_ca_version])
@@ -149,6 +194,9 @@ Configuration:
   docs root dir		${datarootdir}
   Compiler		${CC}
   CPPFLAGS		${CPPFLAGS}
+  Config auto WCFLAGS	${WCFLAGS}
+  Config FCA_CFLAGS	${FCA_CFLAGS}
+  Config FCA_LIB	${FCA_LIB}
   GIMP_CFLAGS		${GIMP_CFLAGS}
   GIMP_LIBS		${GIMP_LIBS}
   LIBS			${LIBS}
