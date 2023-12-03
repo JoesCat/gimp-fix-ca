@@ -20,7 +20,7 @@ AC_PREREQ([2.68])
 #   fix_ca_minor_version = 0;
 #
 m4_define([fix_ca_major_version], [3.0])
-m4_define([fix_ca_minor_version], [3])
+m4_define([fix_ca_minor_version], [4])
 m4_define([fix_ca_version],[fix_ca_major_version.fix_ca_minor_version])
 m4_define([fix_ca_package_name], [gimp-fix-ca])
 

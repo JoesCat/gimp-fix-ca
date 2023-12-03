@@ -10,26 +10,26 @@ Fix-CA is able to fix lateral CA caused by lens and colored fringing
 caused by light travel through dense material such as glass and water
 (which is called directional CA in the program).
 
-Current version of Fix-CA is 3.0.2.
+Current version of Fix-CA is 3.0.4.
 This plug-in was written by Kriang Lerdsuwanakij lerdsuwa@users.sourceforge.net
-and is distributed under [GNU General Public License Version 2](COPYING) (GPLv2).
+and is distributed under [GNU General Public License Version 3](COPYING) (GPLv3).
 
 ## Download and building Fix-CA
 
-Just get the C source file.
+Fortunately, everything is in just one file. Just get the C source file.
 To compile and install the plug-in, you need the development library 
 for Gimp.  Usually it's in gimp-devel package in your distribution.
 Use the command
 ```sh
         gimptool-2.0 --install fix-ca.c
 ```
-will automatically compile and install into the plug-in directory
-of your account.  If you wish to make the plug-in available to all
-users of the machine, use
+will automatically compile and install into the local plug-in directory
+of your account.  For Windows users, if you wish to make the plug-in
+available to all users of the machine, use
 ```sh
         gimptool-2.0 --install-admin fix-ca.c
 ```
-instead.  Type
+instead. (use the Installation method below for other OSes).  Type
 ```sh
         gimptool-2.0 --help
 ```
@@ -39,6 +39,51 @@ If Gimp is already running in your system, exit and restart Gimp for the new
 plug-in to be detected. The following displays Fix-CA version 2.1.0 information
 from the GIMP menu.
 ![](plug-in-browser.png)
+
+## Installation method
+
+Developers and Distro install will be more interested in this install method.
+
+Installing from Git master requires 2 preparatory steps:
+
+First, you need to create the ./configure script if you do not have it yet
+```sh
+autoreconf -i  (or use 'autoreconf --install --force' for some setups)
+automake --foreign -Wall
+```
+
+Second, you then use the usual steps to compile the plug-in.
+Various operating systems and setups will need ./configure options set.
+Here are example install steps for Linux, FreeBSD, Win32/64 are shown below:
+
+Installing on Linux
+```sh
+./configure
+make
+sudo make install
+```
+
+Installing on FreeBSD
+```sh
+./configure --prefix=$(pwd)/BUILD
+make
+make install
+```
+
+Installing on Windows 32-bit
+```sh
+./configure --host=i686-w64-mingw32 --prefix=$(pwd)/build-w32
+make
+make install
+```
+
+Installing on Windows 64-bit
+```sh
+./configure --host=x86_64-w64-mingw32 --prefix=$(pwd)/build-w64
+make
+make install
+```
+
 
 ## Using Fix-CA
 
@@ -96,7 +141,7 @@ final image produced by this filter.
 
 In this example we need to trade off between bottom right area (which suffers
 from less CA) and the left area (the most CA).
-When image is used cropped, you can concentrate on fixing in the part of image
+When image used is cropped, you can concentrate on fixing in the part of image
 that is actually used and ignore the rest.  A better result can be expected.
 Just remember to correct CA before cropping.
 
@@ -106,7 +151,7 @@ Just remember to correct CA before cropping.
 In directional chromatic aberration, the amount of CA is assumed to be the
 same throughout the image.  This can happen, for example, when photographing
 fish in an aquarium.  Light travels through dense water and glass and bends
-differently depending on the color.  This CA correction mode is introduced in
+differently depending on the color.  This CA correction mode was introduced in
 Fix-CA version 3.0.0. You can specify the amount of shift for blue and red
 along both X and Y axis.
 
@@ -126,6 +171,7 @@ The picture below shows (50% zoom) corrected image of the interested region.
 
 ## Version History
 
+- 3.0.4 (December 2, 2023) mostly edits around make system. Minimal mods to fix-ca.c code (which needs updating).
 - 3.0.3 (October 8, 2022) autoconf/automake/configure/make added for building fix.ca
 - 3.0.2 (December 22, 2007) Add the missing tile cache that speed up preview.
 - 3.0.1 (July 5, 2007) Fix a bug involving image row cache that cause bad CA correction when the number of pixel moved is large.
@@ -134,10 +180,5 @@ The picture below shows (50% zoom) corrected image of the interested region.
 - 2.0.0 (December 5, 2006) Improve speed. Add linear and cubic interpolation.
 - 1.0.0 (November 30, 2006) First version.
 
-
-## Future Plan
-
-A long target is for the plug-in to work automatically without
-requiring user to carefully choose the amount of shift.
 
 Note: The Original Web page content and pictures are copyrighted (c) 2006, 2007 by Kriang Lerdsuwanakij.

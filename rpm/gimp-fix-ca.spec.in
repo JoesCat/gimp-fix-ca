@@ -2,7 +2,7 @@ Name:		@FIX_CA_PACKAGE_NAME@
 Version:	@FIX_CA_VERSION@
 Release:	0
 Summary:	A Gimp plugin for correcting chromatic aberration (CA)
-License:	GPLv2+
+License:	GPLv3+
 Group:		Graphics/Editors and Converters
 URL:		http://kcd.sourceforge.net/fix-ca.php
 Source0:	https://github.com/JoesCat/gimp-fix-ca/releases/download/%{version}/%{name}-%{version}.tar.gz

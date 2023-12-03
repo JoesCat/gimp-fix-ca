@@ -21,7 +21,7 @@
 #if __has_include("fix-ca-config.h")
 #include "fix-ca-config.h"
 #else
-#define FIX_CA_VERSION "fix-CA 3.0.3"
+#define FIX_CA_VERSION "fix-CA 3.0.4"
 #endif
 
 #include <string.h>
