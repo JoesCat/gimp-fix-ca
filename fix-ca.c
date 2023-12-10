@@ -93,8 +93,8 @@ static gboolean	fix_ca_dialog (GimpDrawable *drawable, FixCaParams *params);
 static void	preview_update (GimpPreview *preview, FixCaParams *params);
 static inline int	round_nearest (gdouble d);
 static inline int	absolute (gint i);
-static inline int	clip (gdouble d);
-static inline int	bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy);
+static inline guchar	clip (gdouble d);
+static inline guchar	bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy);
 static inline double	cubic (gint xm1, gint j, gint xp1, gint xp2, gdouble dx);
 static inline int	scale (gint i, gint size, gdouble scale_val, gdouble shift_val);
 static inline double	scale_d (gint i, gint size, gdouble scale_val, gdouble shift_val);
@@ -255,14 +255,14 @@ static void fix_ca (GimpDrawable *drawable, FixCaParams *params)
 
 			/* Initialize pixel regions */
 	gimp_pixel_rgn_init (&srcPR, drawable,
-			     0, 0, drawable->width, drawable->height, FALSE, FALSE);
+			     0, 0, (gint)(drawable->width), (gint)(drawable->height), FALSE, FALSE);
 	gimp_pixel_rgn_init (&destPR, drawable,
-			     0, 0, drawable->width, drawable->height, TRUE, TRUE);
+			     0, 0, (gint)(drawable->width), (gint)(drawable->height), TRUE, TRUE);
 
 			/* Get the input */
 	gimp_drawable_mask_bounds (drawable->drawable_id, &x1, &y1, &x2, &y2);
 
-	fix_ca_region (drawable, &srcPR, &destPR, drawable->bpp, params,
+	fix_ca_region (drawable, &srcPR, &destPR, (int)(drawable->bpp), params,
 		       x1, x2, y1, y2, TRUE);
 
 	gimp_drawable_flush (drawable);
@@ -469,9 +469,9 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 	drawable = gimp_drawable_preview_get_drawable (GIMP_DRAWABLE_PREVIEW (preview));
 
 	gimp_pixel_rgn_init (&srcPR, drawable,
-			     0, 0, drawable->width, drawable->height, FALSE, FALSE);
+			     0, 0, (gint)(drawable->width), (gint)(drawable->height), FALSE, FALSE);
 	gimp_pixel_rgn_init (&destPR, drawable,
-			     0, 0, drawable->width, drawable->height, TRUE, TRUE);
+			     0, 0, (gint)(drawable->width), (gint)(drawable->height), TRUE, TRUE);
 
 	gimp_preview_get_position (preview, &x, &y);
 	gimp_preview_get_size (preview, &width, &height);
@@ -481,7 +481,7 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 	x2 = x + width;
 	y2 = y + height;
 
-	fix_ca_region (drawable, &srcPR, &destPR, drawable->bpp,
+	fix_ca_region (drawable, &srcPR, &destPR, (int)(drawable->bpp),
 		       params,
 		       x1, x2, y1, y2,
 		       FALSE);
@@ -566,7 +566,7 @@ static guchar *load_data (GimpPixelRgn *srcPTR,
 	return src[row_best];
 }
 
-static int clip (gdouble d)
+static guchar clip (gdouble d)
 {
 	gint	i = round_nearest (d);
 	if (i <= 0)
@@ -574,10 +574,10 @@ static int clip (gdouble d)
 	else if (i >= 255)
 		return 255;
 	else
-		return i;
+		return (guchar)(i);
 }
 
-static int bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy)
+static guchar bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy)
 {
 	double d = (1-dy) * (xy + dx * (x1y-xy))
 		   + dy * (xy1 + dx * (x1y1-xy1));
@@ -972,11 +972,10 @@ static void fix_ca_region (GimpDrawable *drawable,
 				g *= s_scale;
 				if (g > 255)
 					g = 255;
-				dest[(x-x1)*bytes + 1] = g;
 				gimp_hsv_to_rgb_int (&r, &g, &b);
-				dest[(x-x1)*bytes] = r;
-				dest[(x-x1)*bytes + 1] = g;
-				dest[(x-x1)*bytes + 2] = b;
+				dest[(x-x1)*bytes] = (guchar)(r);
+				dest[(x-x1)*bytes + 1] = (guchar)(g);
+				dest[(x-x1)*bytes + 2] = (guchar)(b);
 			}
 		}
 
