@@ -23,7 +23,7 @@
    <release version="3.0.3" date="2022-10-09" />
   </releases>
   <requires>
-   <id version="2.4" compare="ge">org.gimp.GIMP</id>
+   <id version="2.10" compare="ge">org.gimp.GIMP</id>
   </requires>
   <metadata>
    <value key="GIMP::plug-in-path">fix-ca</value>

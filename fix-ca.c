@@ -21,7 +21,7 @@
 #if __has_include("fix-ca-config.h")
 #include "fix-ca-config.h"
 #else
-#define FIX_CA_VERSION "fix-CA 3.0.4"
+#define FIX_CA_VERSION "fix-CA local"
 #endif
 
 #include <string.h>
@@ -67,15 +67,15 @@ typedef struct {
 
 /* Global default */
 static FixCaParams fix_ca_params_default = {
-	0.0,
-	0.0,
-	TRUE,
-	GIMP_INTERPOLATION_LINEAR,
-	0.0,
-	0.0,
-	0.0,
-	0.0,
-	0.0
+	0.0,	/* blue */
+	0.0,	/* red  */
+	TRUE,	/* update preview */
+	GIMP_INTERPOLATION_LINEAR, /* do linear interpolation */
+	0.0,	/* saturation */
+	0.0,	/* x_blue */
+	0.0,	/* x_red  */
+	0.0,	/* y_blue */
+	0.0	/* y_red  */
 };
 
 /* Local function prototypes */
@@ -85,7 +85,7 @@ static void	run (const gchar *name, gint nparams,
 		     GimpParam **return_vals);
 static void	fix_ca (GimpDrawable *drawable, FixCaParams *params);
 static void	fix_ca_region (GimpDrawable *drawable,
-			       GimpPixelRgn *srcPTR, GimpPixelRgn *dstPTR,
+			       guchar *srcPTR, guchar *dstPTR,
 			       gint bytes, FixCaParams *params,
 			       gint x1, gint x2, gint y1, gint y2,
 			       gboolean show_progress);
@@ -98,7 +98,7 @@ static inline guchar	bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble d
 static inline double	cubic (gint xm1, gint j, gint xp1, gint xp2, gdouble dx);
 static inline int	scale (gint i, gint size, gdouble scale_val, gdouble shift_val);
 static inline double	scale_d (gint i, gint size, gdouble scale_val, gdouble shift_val);
-static guchar *load_data (GimpPixelRgn *srcPTR,
+static guchar *load_data (GimpDrawable *drawable, guchar *srcPTR,
 			  guchar *src[SOURCE_ROWS], gint src_row[SOURCE_ROWS],
 			  gint src_iter[SOURCE_ROWS], gint band_adj,
 			  gint band_1, gint band_2, gint y, gint iter);
@@ -184,7 +184,7 @@ static void run (const gchar *name, gint nparams,
 	fix_ca_params.y_blue = fix_ca_params_default.y_blue;
 	fix_ca_params.y_red = fix_ca_params_default.y_red;
 
-	if (strcmp(name, PROCEDURE_NAME) != 0 || \
+	if (param[0].type != GIMP_PDB_INT32 || strcmp(name, PROCEDURE_NAME) != 0 || \
 	    ((run_mode == GIMP_RUN_NONINTERACTIVE) && (nparams < 5 || nparams > 10))) {
 		values[0].data.d_status = GIMP_PDB_CALLING_ERROR;
 		return;
@@ -250,24 +250,60 @@ static void run (const gchar *name, gint nparams,
 
 static void fix_ca (GimpDrawable *drawable, FixCaParams *params)
 {
-	GimpPixelRgn srcPR, destPR;
-	gint         x1, y1, x2, y2;
+	GeglBuffer *srcBuf, *destBuf;
+	guchar     *srcImg, *destImg;
+	const Babl *format;
+	gint       x, y, width, height, img_bpp;
 
-			/* Initialize pixel regions */
-	gimp_pixel_rgn_init (&srcPR, drawable,
-			     0, 0, (gint)(drawable->width), (gint)(drawable->height), FALSE, FALSE);
-	gimp_pixel_rgn_init (&destPR, drawable,
-			     0, 0, (gint)(drawable->width), (gint)(drawable->height), TRUE, TRUE);
+	/* get dimensions */
+	if (!(gimp_drawable_mask_intersect(drawable->drawable_id, &x, &y, &width, &height)))
+		return;
 
-			/* Get the input */
-	gimp_drawable_mask_bounds (drawable->drawable_id, &x1, &y1, &x2, &y2);
+#ifdef DEBUG_TIME
+	double	sec;
+	struct timeval tv1, tv2;
+	gettimeofday(&tv1, NULL);
 
-	fix_ca_region (drawable, &srcPR, &destPR, (int)(drawable->bpp), params,
-		       x1, x2, y1, y2, TRUE);
+	printf ("Start fix_ca(), ID=%d bpp=%d x=%d y=%d width=%d height=%d\n", \
+		drawable->drawable_id, drawable->bpp, x, y, width, height);
+#endif
 
-	gimp_drawable_flush (drawable);
+	format = gimp_drawable_get_format (drawable->drawable_id);
+	img_bpp = babl_format_get_bytes_per_pixel (format);
+
+	//gegl_init (NULL, NULL);
+
+	/* fetch pixel regions and setup shadow buffer */
+	srcBuf  = gimp_drawable_get_buffer (drawable->drawable_id);
+	destBuf = gimp_drawable_get_shadow_buffer (drawable->drawable_id);
+	srcImg  = g_new (guchar, drawable->width * drawable->height * (guint)(img_bpp));
+	destImg = g_new (guchar, drawable->width * drawable->height * (guint)(img_bpp));
+
+	gegl_buffer_get (srcBuf, GEGL_RECTANGLE(x, y, width, height), 1.0, \
+			 format, srcImg, GEGL_AUTO_ROWSTRIDE, GEGL_ABYSS_NONE);
+
+	/* adjust pixel regions from srcImg to destImg, according to params */
+	fix_ca_region (drawable, srcImg, destImg, img_bpp, params, x, (x + width), y, (y + height), TRUE);
+
+	gegl_buffer_set (destBuf, GEGL_RECTANGLE(x, y, width, height), 0, \
+			 format, destImg, GEGL_AUTO_ROWSTRIDE);
+
+	g_free (destImg);
+	g_free (srcImg);
+	g_object_unref (destBuf);
+	g_object_unref (srcBuf);
+
 	gimp_drawable_merge_shadow (drawable->drawable_id, TRUE);
-	gimp_drawable_update (drawable->drawable_id, x1, y1, x2 - x1, y2 - y1);
+	gimp_drawable_update (drawable->drawable_id, x, y, width, height);
+
+	//gegl_exit ();
+
+#ifdef DEBUG_TIME
+	gettimeofday(&tv2, NULL);
+
+	sec = tv2.tv_sec - tv1.tv_sec + (tv2.tv_usec - tv1.tv_usec)/1000000.0;
+	printf("End fix-ca(), Elapsed time: %.2f\n", sec);
+#endif
 }
 
 static gboolean fix_ca_dialog (GimpDrawable *drawable, FixCaParams *params)
@@ -310,7 +346,7 @@ static gboolean fix_ca_dialog (GimpDrawable *drawable, FixCaParams *params)
 	gtk_table_set_col_spacings (GTK_TABLE (table), 6);
 	gtk_table_set_row_spacings (GTK_TABLE (table), 6);
 	gtk_box_pack_start (GTK_BOX (main_vbox), table, FALSE, FALSE, 0);
-  	gtk_widget_show (table);
+	gtk_widget_show (table);
 
 	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 0,
 				    _("Preview _saturation:"), SCALE_WIDTH, ENTRY_WIDTH,
@@ -350,7 +386,7 @@ static gboolean fix_ca_dialog (GimpDrawable *drawable, FixCaParams *params)
 	gtk_table_set_col_spacings (GTK_TABLE (table), 6);
 	gtk_table_set_row_spacings (GTK_TABLE (table), 6);
 	gtk_container_add (GTK_CONTAINER (frame), table);
-  	gtk_widget_show (table);
+	gtk_widget_show (table);
 
 	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 0,
 				    _("_Blue:"), SCALE_WIDTH, ENTRY_WIDTH,
@@ -386,7 +422,7 @@ static gboolean fix_ca_dialog (GimpDrawable *drawable, FixCaParams *params)
 	gtk_table_set_col_spacings (GTK_TABLE (table), 6);
 	gtk_table_set_row_spacings (GTK_TABLE (table), 6);
 	gtk_container_add (GTK_CONTAINER (frame), table);
-  	gtk_widget_show (table);
+	gtk_widget_show (table);
 
 	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 0,
 				    _("Blue:"), SCALE_WIDTH, ENTRY_WIDTH,
@@ -422,7 +458,7 @@ static gboolean fix_ca_dialog (GimpDrawable *drawable, FixCaParams *params)
 	gtk_table_set_col_spacings (GTK_TABLE (table), 6);
 	gtk_table_set_row_spacings (GTK_TABLE (table), 6);
 	gtk_container_add (GTK_CONTAINER (frame), table);
-  	gtk_widget_show (table);
+	gtk_widget_show (table);
 
 	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 0,
 				    _("Blue:"), SCALE_WIDTH, ENTRY_WIDTH,
@@ -463,8 +499,9 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 {
 	GimpDrawable *drawable;
 	gint	x1, x2, y1, y2, width, height;
-	gint	x, y;
+	gint	x, y, size;
 	GimpPixelRgn srcPR, destPR;
+	guchar	*srcImg, *destImg;
 
 	drawable = gimp_drawable_preview_get_drawable (GIMP_DRAWABLE_PREVIEW (preview));
 
@@ -481,12 +518,27 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 	x2 = x + width;
 	y2 = y + height;
 
-	fix_ca_region (drawable, &srcPR, &destPR, (int)(drawable->bpp),
+	size = (gint)(drawable->width) * (gint)(drawable->height) * (int)(drawable->bpp);
+	srcImg =  g_new (guchar, size);
+	destImg =  g_new (guchar, size);
+
+	/* Copy source image to working buffer */
+	gimp_pixel_rgn_get_rect (&srcPR, srcImg,
+				 0, 0, (gint)(drawable->width), (gint)(drawable->height));
+
+	fix_ca_region (drawable, srcImg, destImg, (int)(drawable->bpp),
 		       params,
 		       x1, x2, y1, y2,
 		       FALSE);
 
+	/* Copy working buffer to dest image */
+	gimp_pixel_rgn_set_rect (&destPR, destImg,
+				 0, 0, (gint)(drawable->width), (gint)(drawable->height));
+
 	gimp_drawable_preview_draw_region (GIMP_DRAWABLE_PREVIEW (preview), &destPR);
+
+	g_free(destImg);
+	g_free(srcImg);
 }
 
 /* Round to nearest integer. Only works correctly when d >= 0.
@@ -527,12 +579,12 @@ static double scale_d (gint i, gint size, gdouble scale_val, gdouble shift_val)
 		return d;
 }
 
-static guchar *load_data (GimpPixelRgn *srcPTR,
-		   guchar *src[SOURCE_ROWS], gint src_row[SOURCE_ROWS],
-		   gint src_iter[SOURCE_ROWS], gint band_adj,
-		   gint band_1, gint band_2, gint y, gint iter)
+static guchar *load_data (GimpDrawable *drawable, guchar *srcPTR,
+			  guchar *src[SOURCE_ROWS], gint src_row[SOURCE_ROWS],
+			  gint src_iter[SOURCE_ROWS], gint band_adj,
+			  gint band_1, gint band_2, gint y, gint iter)
 {
-	gint	i, diff, diff_max = -1, row_best = -1;
+	gint	i, l, x, diff, diff_max = -1, row_best = -1;
 	int	iter_oldest;
 
 	for (i = 0; i < SOURCE_ROWS; ++i) {
@@ -560,10 +612,25 @@ static guchar *load_data (GimpPixelRgn *srcPTR,
 		}
 	}
 
-	gimp_pixel_rgn_get_row (srcPTR, src[row_best]+band_adj, band_1, y, band_2-band_1+1);
+	x = (((gint)(drawable->width) * y) + band_1) * (gint)(drawable->bpp);
+	i = band_adj * (gint)(drawable->bpp);
+	l = i + (band_2-band_1+1) * (gint)(drawable->bpp);
+	for (; i < l; ++i) {
+		src[row_best][i] = srcPTR[x + i];
+	}
 	src_row[row_best] = y;
 	src_iter[row_best] = iter;
 	return src[row_best];
+}
+
+static void set_data (GimpDrawable *drawable, guchar *dstPTR, guchar *dest, gint xstart, gint yrow, gint width)
+{
+	gint i, l, x;
+	x = (((gint)(drawable->width) * yrow) + xstart) * (gint)(drawable->bpp);
+	l = width * (gint)(drawable->bpp);
+	for (i = 0; i < l; ++i) {
+		dstPTR[x + i] = dest[i];
+	}
 }
 
 static guchar clip (gdouble d)
@@ -593,12 +660,12 @@ static double cubic (gint xm1, gint x, gint xp1, gint xp2, gdouble dx)
 }
 
 static void fix_ca_region (GimpDrawable *drawable,
-			   GimpPixelRgn *srcPTR, GimpPixelRgn *dstPTR,
+			   guchar *srcPTR, guchar *dstPTR,
 			   gint bytes, FixCaParams *params,
 			   gint x1, gint x2, gint y1, gint y2,
 			   gboolean show_progress)
 {
-	guchar  *src[SOURCE_ROWS];
+	guchar	*src[SOURCE_ROWS];
 	gint	src_row[SOURCE_ROWS];
 	gint	src_iter[SOURCE_ROWS];
 	gint	i;
@@ -608,21 +675,21 @@ static void fix_ca_region (GimpDrawable *drawable,
 	gint	orig_width, orig_height, max_dim;
 	gdouble	scale_blue, scale_red, scale_max;
 
-	gdouble x_shift_max, x_shift_min;
+	gdouble	x_shift_max, x_shift_min;
 
 	gint	band_1, band_2, band_adj;
 
 #ifdef DEBUG_TIME
 	double	sec;
-	struct timeval tv1, tv2;
+	struct	timeval tv1, tv2;
 	gettimeofday (&tv1, NULL);
 #endif
 
 	if (show_progress)
 		gimp_progress_init (_("Shifting pixel components..."));
 
-	orig_width = srcPTR->w;
-	orig_height = srcPTR->h;
+	orig_width = (gint)(drawable->width);
+	orig_height = (gint)(drawable->height);
 
 			/* Allocate buffers for reading, writing */
 	for (i = 0; i < SOURCE_ROWS; ++i) {
@@ -683,7 +750,7 @@ static void fix_ca_region (GimpDrawable *drawable,
 	for (y = y1; y < y2; ++y) {
 			/* Get current row, for green channel */
 		guchar *ptr;
-		ptr = load_data (srcPTR, src, src_row, src_iter,
+		ptr = load_data (drawable, srcPTR, src, src_row, src_iter,
 				 band_adj, band_1, band_2, y, y);
 
 		if (params->interpolation == GIMP_INTERPOLATION_NONE) {
@@ -693,9 +760,9 @@ static void fix_ca_region (GimpDrawable *drawable,
 				/* Get blue and red row */
 			y_blue = scale (y, orig_height, scale_blue, params->y_blue);
 			y_red = scale (y, orig_height, scale_red, params->y_red);
-			ptr_blue = load_data (srcPTR, src, src_row, src_iter,
+			ptr_blue = load_data (drawable, srcPTR, src, src_row, src_iter,
 					      band_adj, band_1, band_2, y_blue, y);
-			ptr_red = load_data (srcPTR, src, src_row, src_iter,
+			ptr_red = load_data (drawable, srcPTR, src, src_row, src_iter,
 					     band_adj, band_1, band_2, y_red, y);
 
 			for (x = x1; x < x2; ++x) {
@@ -738,19 +805,19 @@ static void fix_ca_region (GimpDrawable *drawable,
 			d_y_red = y_red_d - y_red_1;
 
 				/* Load pixel data */
-			ptr_blue_1 = load_data (srcPTR, src, src_row, src_iter,
+			ptr_blue_1 = load_data (drawable, srcPTR, src, src_row, src_iter,
 						band_adj, band_1, band_2, y_blue_1, y);
-			ptr_red_1 = load_data (srcPTR, src, src_row, src_iter,
+			ptr_red_1 = load_data (drawable, srcPTR, src, src_row, src_iter,
 					       band_adj, band_1, band_2, y_red_1, y);
 			if (y_blue_1 == orig_height-1)
 				ptr_blue_2 = ptr_blue_1;
 			else
-				ptr_blue_2 = load_data (srcPTR, src, src_row, src_iter,
+				ptr_blue_2 = load_data (drawable, srcPTR, src, src_row, src_iter,
 							band_adj, band_1, band_2, y_blue_1+1, y);
 			if (y_red_1 == orig_height-1)
 				ptr_red_2 = ptr_red_1;
 			else
-				ptr_red_2 = load_data (srcPTR, src, src_row, src_iter,
+				ptr_red_2 = load_data (drawable, srcPTR, src, src_row, src_iter,
 						       band_adj, band_1, band_2, y_red_1+1, y);
 
 			for (x = x1; x < x2; ++x) {
@@ -819,33 +886,33 @@ static void fix_ca_region (GimpDrawable *drawable,
 			d_y_red = y_red_d - y_red_2;
 
 				/* Row */
-			ptr_blue_2 = load_data (srcPTR, src, src_row, src_iter,
+			ptr_blue_2 = load_data (drawable, srcPTR, src, src_row, src_iter,
 						band_adj, band_1, band_2, y_blue_2, y);
-			ptr_red_2 = load_data (srcPTR, src, src_row, src_iter,
+			ptr_red_2 = load_data (drawable, srcPTR, src, src_row, src_iter,
 					       band_adj, band_1, band_2, y_red_2, y);
 
 				/* Row - 1 */
 			if (y_blue_2 == 0)
 				ptr_blue_1 = ptr_blue_2;
 			else
-				ptr_blue_1 = load_data (srcPTR, src, src_row, src_iter,
+				ptr_blue_1 = load_data (drawable, srcPTR, src, src_row, src_iter,
 							band_adj, band_1, band_2, y_blue_2-1, y);
 			if (y_red_2 == 0)
 				ptr_red_1 = ptr_red_2;
 			else
-				ptr_red_1 = load_data (srcPTR, src, src_row, src_iter,
+				ptr_red_1 = load_data (drawable, srcPTR, src, src_row, src_iter,
 						       band_adj, band_1, band_2, y_red_2-1, y);
 
 				/* Row + 1 */
 			if (y_blue_2 == orig_height-1)
 				ptr_blue_3 = ptr_blue_2;
 			else
-				ptr_blue_3 = load_data (srcPTR, src, src_row, src_iter,
+				ptr_blue_3 = load_data (drawable, srcPTR, src, src_row, src_iter,
 							band_adj, band_1, band_2, y_blue_2+1, y);
 			if (y_red_2 == orig_height-1)
 				ptr_red_3 = ptr_red_2;
 			else
-				ptr_red_3 = load_data (srcPTR, src, src_row, src_iter,
+				ptr_red_3 = load_data (drawable, srcPTR, src, src_row, src_iter,
 						       band_adj, band_1, band_2, y_red_2+1, y);
 
 				/* Row + 2 */
@@ -854,14 +921,14 @@ static void fix_ca_region (GimpDrawable *drawable,
 			else if (y_blue_2 == orig_height-2)
 				ptr_blue_4 = ptr_blue_3;
 			else
-				ptr_blue_4 = load_data (srcPTR, src, src_row, src_iter,
+				ptr_blue_4 = load_data (drawable, srcPTR, src, src_row, src_iter,
 							band_adj, band_1, band_2, y_blue_2+2, y);
 			if (y_red_2 == orig_height-1)
 				ptr_red_4 = ptr_red_2;
 			else if (y_red_2 == orig_height-2)
 				ptr_red_4 = ptr_red_3;
 			else
-				ptr_red_4 = load_data (srcPTR, src, src_row, src_iter,
+				ptr_red_4 = load_data (drawable, srcPTR, src, src_row, src_iter,
 						       band_adj, band_1, band_2, y_red_2+2, y);
 
 			for (x = x1; x < x2; ++x) {
@@ -979,7 +1046,7 @@ static void fix_ca_region (GimpDrawable *drawable,
 			}
 		}
 
-		gimp_pixel_rgn_set_row (dstPTR, dest, x1, y, x2-x1);
+		set_data (drawable, dstPTR, dest, x1, y, x2-x1);
 
 		if (show_progress && ((y-y1) % 8 == 0))
 			gimp_progress_update ((gdouble) (y-y1) / (y2-y1));

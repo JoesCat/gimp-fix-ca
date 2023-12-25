@@ -118,7 +118,7 @@ fi
 GIMP_CFLAGS=
 GIMP_LIBS=
 have_libgimp=no
-PKG_CHECK_MODULES([GIMP],[gimp-2.0 >= 2.4.0 gimpui-2.0 >= 2.4.0],[have_libgimp=yes])
+PKG_CHECK_MODULES([GIMP],[gimp-2.0 >= 2.10.0 gimpui-2.0 >= 2.10.0],[have_libgimp=yes])
 if test x"${have_libgimp}" != xyes; then
     AC_MSG_FAILURE([ERROR: Please install the developer version of libgimp.],[1])
 fi

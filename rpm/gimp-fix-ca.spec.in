@@ -12,7 +12,7 @@ BuildRequires:	gcc
 BuildRequires:	make
 BuildRequires:  gtk+2-devel
 BuildRequires:  pkgconfig(gimp-2.0)
-Requires:       gimp >= 2.6.0
+Requires:       gimp >= 2.10.0
 
 
 %description
