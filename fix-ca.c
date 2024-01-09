@@ -66,7 +66,7 @@ typedef struct {
 } FixCaParams;
 
 /* Global default */
-static FixCaParams fix_ca_params_default = {
+static const FixCaParams fix_ca_params_default = {
 	0.0,	/* blue */
 	0.0,	/* red  */
 	TRUE,	/* update preview */
@@ -500,15 +500,15 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 	GimpDrawable *drawable;
 	gint	x1, x2, y1, y2, width, height;
 	gint	x, y, size;
-	GimpPixelRgn srcPR, destPR;
+	GeglBuffer *srcBuf;
 	guchar	*srcImg, *destImg;
+	const Babl *format;
 
 	drawable = gimp_drawable_preview_get_drawable (GIMP_DRAWABLE_PREVIEW (preview));
 
-	gimp_pixel_rgn_init (&srcPR, drawable,
-			     0, 0, (gint)(drawable->width), (gint)(drawable->height), FALSE, FALSE);
-	gimp_pixel_rgn_init (&destPR, drawable,
-			     0, 0, (gint)(drawable->width), (gint)(drawable->height), TRUE, TRUE);
+	format = gimp_drawable_get_format (drawable->drawable_id);
+
+	srcBuf  = gimp_drawable_get_buffer (drawable->drawable_id);
 
 	gimp_preview_get_position (preview, &x, &y);
 	gimp_preview_get_size (preview, &width, &height);
@@ -523,22 +523,20 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 	destImg =  g_new (guchar, size);
 
 	/* Copy source image to working buffer */
-	gimp_pixel_rgn_get_rect (&srcPR, srcImg,
-				 0, 0, (gint)(drawable->width), (gint)(drawable->height));
+	gegl_buffer_get (srcBuf, GEGL_RECTANGLE(0, 0, (gint)(drawable->width), (gint)(drawable->height)), 1.0, \
+			 format, srcImg, GEGL_AUTO_ROWSTRIDE, GEGL_ABYSS_NONE);
 
 	fix_ca_region (drawable, srcImg, destImg, (int)(drawable->bpp),
 		       params,
 		       x1, x2, y1, y2,
 		       FALSE);
 
-	/* Copy working buffer to dest image */
-	gimp_pixel_rgn_set_rect (&destPR, destImg,
-				 0, 0, (gint)(drawable->width), (gint)(drawable->height));
-
-	gimp_drawable_preview_draw_region (GIMP_DRAWABLE_PREVIEW (preview), &destPR);
+	gimp_preview_draw_buffer (preview, destImg, \
+				  (gint)(drawable->width) * (int)(drawable->bpp));
 
 	g_free(destImg);
 	g_free(srcImg);
+	g_object_unref (srcBuf);
 }
 
 /* Round to nearest integer. Only works correctly when d >= 0.
