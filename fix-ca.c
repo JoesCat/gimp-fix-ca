@@ -501,9 +501,9 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 static void preview_update (GimpPreview *preview, FixCaParams *params)
 {
 	gint32	preview_ID;
-	gint	x, y, width, height, xImg, yImg, bppImg;
+	gint	i, x, y, width, height, xImg, yImg, bppImg, size;
 	GeglBuffer *srcBuf;
-	guchar	*srcImg, *destImg;
+	guchar	*srcImg, *destImg, *prevImg;
 	const Babl *format;
 
 	preview_ID = gimp_drawable_preview_get_drawable_id (preview);
@@ -516,28 +516,49 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 
 	xImg = gimp_drawable_width(preview_ID);
 	yImg = gimp_drawable_height(preview_ID);
-	srcImg  = g_new (guchar, xImg * yImg * bppImg);
-	destImg = g_new (guchar, xImg * yImg * bppImg);
+	size = xImg * yImg * bppImg;
+	srcImg  = g_new (guchar, size);
+	destImg = g_new (guchar, size);
+	prevImg = g_new (guchar, width * height * bppImg);
 
-	srcBuf = gimp_drawable_get_buffer (preview_ID);
+	srcBuf  = gimp_drawable_get_buffer (preview_ID);
 	gegl_buffer_get (srcBuf, GEGL_RECTANGLE(0, 0, xImg, yImg), 1.0, \
-			 format, srcImg, GEGL_AUTO_ROWSTRIDE, GEGL_ABYSS_NONE);
+	 format, srcImg, GEGL_AUTO_ROWSTRIDE, GEGL_ABYSS_NONE);
 
 	fix_ca_region (srcImg, destImg, xImg, yImg, bppImg, params, \
-		       x, (x + width), y, (y + height), FALSE);
+		       0, xImg, y, (y + height), FALSE);
 
-	gimp_preview_draw_buffer (preview, destImg, xImg * bppImg);
+	for (i = 0; i < height; i++)
+	{
+		memcpy (&prevImg[width * i * bppImg],
+			&destImg[(xImg * (y + i) + x) * bppImg],
+			width * bppImg);
+	}
+
+	gimp_preview_draw_buffer (preview, prevImg, width * bppImg);
 
 	g_object_unref (srcBuf);
+	g_free(prevImg);
 	g_free(destImg);
 	g_free(srcImg);
 }
 
-/* Round to nearest integer. Only works correctly when d >= 0.
-   For d < 0, the expression should be return (int)(d - 0.5); */
 static int round_nearest (gdouble d)
 {
-	return (int)(d + 0.5);
+	if (d >= 0)
+	{
+		if (d > INT_MAX)
+			return INT_MAX;
+		else
+			return (int)(d + 0.5);
+	}
+	else
+	{
+		if (d < INT_MIN)
+			return INT_MIN;
+		else
+			return -((int)(0.5 - d));
+	}
 }
 
 static int absolute (gint i)
@@ -618,12 +639,10 @@ static guchar *load_data (gint fullWidth, gint bpp, guchar *srcPTR,
 static void set_data (guchar *dstPTR, guchar *dest, gint bpp, \
 		      gint fullWidth, gint xstart, gint yrow, gint width)
 {
-	gint i, l, x;
+	gint l, x;
 	x = ((fullWidth * yrow) + xstart) * bpp;
 	l = width * bpp;
-	for (i = 0; i < l; ++i) {
-		dstPTR[x + i] = dest[i];
-	}
+	memcpy (&dstPTR[x], dest, l);
 }
 
 static guchar clip (gdouble d)
