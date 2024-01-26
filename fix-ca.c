@@ -761,6 +761,9 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 		ptr = load_data (orig_width, bytes, srcPTR, src, src_row, src_iter,
 				 band_adj, band_1, band_2, y, y);
 
+		/* Collect Green and Alpha channels all at once */
+		memcpy (dest, &ptr[x1], (x2-x1)*bytes);
+
 		if (params->interpolation == GIMP_INTERPOLATION_NONE) {
 			guchar	*ptr_blue, *ptr_red;
 			gint	y_blue, y_red, x_blue, x_red;
@@ -774,20 +777,12 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 					     band_adj, band_1, band_2, y_red, y);
 
 			for (x = x1; x < x2; ++x) {
-					/* Green channel */
-				dest[(x-x1)*bytes + 1] = ptr[x*bytes + 1];
-
 					/* Blue and red channel */
 				x_blue = scale (x, orig_width, scale_blue, params->x_blue);
 				x_red = scale (x, orig_width, scale_red, params->x_red);
 
 				dest[(x-x1)*bytes] = ptr_red[x_red*bytes];
 				dest[(x-x1)*bytes + 2] = ptr_blue[x_blue*bytes + 2];
-
-					/* Other channels if present */
-				for (b = 3; b < bytes; ++b) {
-					dest[(x-x1)*bytes + b] = ptr[x*bytes + b];
-				}
 			}
 		}
 		else if (params->interpolation == GIMP_INTERPOLATION_LINEAR) {
@@ -829,9 +824,6 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 						       band_adj, band_1, band_2, y_red_1+1, y);
 
 			for (x = x1; x < x2; ++x) {
-					/* Green channel */
-				dest[(x-x1)*bytes + 1] = ptr[x*bytes + 1];
-
 					/* Blue and red channel */
 				x_blue_d = scale_d (x, orig_width, scale_blue, params->x_blue);
 				x_red_d = scale_d (x, orig_width, scale_red, params->x_red);
@@ -861,11 +853,6 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 								   ptr_blue_2[x_blue_1*bytes+2],
 								   ptr_blue_2[x_blue_2*bytes+2],
 								   d_x_blue, d_y_blue);
-
-					/* Other channels if present */
-				for (b = 3; b < bytes; ++b) {
-					dest[(x-x1)*bytes + b] = ptr[x*bytes + b];
-				}
 			}
 		}
 		else if (params->interpolation == GIMP_INTERPOLATION_CUBIC) {
@@ -941,9 +928,6 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 
 			for (x = x1; x < x2; ++x) {
 				double y1, y2, y3, y4;
-
-					/* Green channel */
-				dest[(x-x1)*bytes + 1] = ptr[x*bytes + 1];
 
 					/* Blue and red channel */
 				x_blue_d = scale_d (x, orig_width, scale_blue, params->x_blue);
@@ -1029,11 +1013,6 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 					    d_x_blue);
 
 				dest[(x-x1)*bytes + 2] = clip (cubic (y1, y2, y3, y4, d_y_blue));
-
-					/* Other channels if present */
-				for (b = 3; b < bytes; ++b) {
-					dest[(x-x1)*bytes + b] = ptr[x*bytes + b];
-				}
 			}
 		}
 
