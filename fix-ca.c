@@ -145,7 +145,7 @@ static void query (void)
 				args, 0);
 
 #if 0
-				/* Need to decide about menu location */
+	/* Need to decide about menu location */
 	if (GIMP_CHECK_VERSION(2, 4, 0))
 		gimp_plugin_menu_register (PROCEDURE_NAME, "<Image>/Colors");
 	else
@@ -528,8 +528,7 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 	fix_ca_region (srcImg, destImg, xImg, yImg, bppImg, params, \
 		       0, xImg, y, (y + height), FALSE);
 
-	for (i = 0; i < height; i++)
-	{
+	for (i = 0; i < height; i++) {
 		memcpy (&prevImg[width * i * bppImg],
 			&destImg[(xImg * (y + i) + x) * bppImg],
 			width * bppImg);
@@ -545,15 +544,12 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 
 static int round_nearest (gdouble d)
 {
-	if (d >= 0)
-	{
+	if (d >= 0) {
 		if (d > INT_MAX)
 			return INT_MAX;
 		else
 			return (int)(d + 0.5);
-	}
-	else
-	{
+	} else {
 		if (d < INT_MIN)
 			return INT_MIN;
 		else
@@ -608,7 +604,7 @@ static guchar *load_data (gint fullWidth, gint bpp, guchar *srcPTR,
 		}
 	}
 
-		/* Find a row to replace */
+	/* Find a row to replace */
 	iter_oldest = INT_MAX;		/* Largest possible */
 	for (i = 0; i < SOURCE_ROWS; ++i) {
 		if (src_iter[i] < iter_oldest) {
@@ -698,8 +694,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 	if (show_progress)
 		gimp_progress_init (_("Shifting pixel components..."));
 
-
-			/* Allocate buffers for reading, writing */
+	/* Allocate buffers for reading, writing */
 	for (i = 0; i < SOURCE_ROWS; ++i) {
 		src[i] = g_new (guchar, orig_width * bytes);
 		src_row[i] = ROW_INVALID;	/* Invalid row */
@@ -711,11 +706,11 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 		max_dim = orig_width;
 	else
 		max_dim = orig_height;
-			/* Scale to get source */
+	/* Scale to get source */
 	scale_blue = max_dim / (max_dim + 2 * params->blue);
 	scale_red = max_dim / (max_dim + 2 * params->red);
 
-			/* Optimize by loading only parts of a row */
+	/* Optimize by loading only parts of a row */
 	if (scale_blue > scale_red)
 		scale_max = scale_blue;
 	else
@@ -724,28 +719,27 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 	if (params->x_blue > params->x_red) {
 		x_shift_min = params->x_red;
 		x_shift_max = params->x_blue;
-	}
-	else {
+	} else {
 		x_shift_min = params->x_blue;
 		x_shift_max = params->x_red;
 	}
 
-					/* Horizontal band to load for each row */
+	/* Horizontal band to load for each row */
 	band_1 = scale (x1, orig_width, scale_max, x_shift_max);
 	band_2 = scale (x2-1, orig_width, scale_max, x_shift_min);
-	if (band_1 > x1)		/* Make sure green is also covered */
+	if (band_1 > x1)	/* Make sure green is also covered */
 		band_1 = x1;
 	if (band_2 < x2-1)
 		band_2 = x2-1;
 
-					/* Extra pixels needed for interpolation */
+	/* Extra pixels needed for interpolation */
 	if (params->interpolation != GIMP_INTERPOLATION_NONE) {
 		if (band_1 > 0)
 			--band_1;
 		if (band_2 < orig_width-1)
 			++band_2;
 	}
-					/* More pixels needed for cubic interpolation */
+	/* More pixels needed for cubic interpolation */
 	if (params->interpolation == GIMP_INTERPOLATION_CUBIC) {
 		if (band_1 > 0)
 			--band_1;
@@ -756,7 +750,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 	band_adj = band_1 * bytes;
 
 	for (y = y1; y < y2; ++y) {
-			/* Get current row, for green channel */
+		/* Get current row, for green channel */
 		guchar *ptr;
 		ptr = load_data (orig_width, bytes, srcPTR, src, src_row, src_iter,
 				 band_adj, band_1, band_2, y, y);
@@ -768,7 +762,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			guchar	*ptr_blue, *ptr_red;
 			gint	y_blue, y_red, x_blue, x_red;
 
-				/* Get blue and red row */
+			/* Get blue and red row */
 			y_blue = scale (y, orig_height, scale_blue, params->y_blue);
 			y_red = scale (y, orig_height, scale_red, params->y_red);
 			ptr_blue = load_data (orig_width, bytes, srcPTR, src, src_row, src_iter,
@@ -777,37 +771,36 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 					     band_adj, band_1, band_2, y_red, y);
 
 			for (x = x1; x < x2; ++x) {
-					/* Blue and red channel */
+				/* Blue and red channel */
 				x_blue = scale (x, orig_width, scale_blue, params->x_blue);
 				x_red = scale (x, orig_width, scale_red, params->x_red);
 
 				dest[(x-x1)*bytes] = ptr_red[x_red*bytes];
 				dest[(x-x1)*bytes + 2] = ptr_blue[x_blue*bytes + 2];
 			}
-		}
-		else if (params->interpolation == GIMP_INTERPOLATION_LINEAR) {
-				/* Pointer to pixel data rows y, y+1 */
+		} else if (params->interpolation == GIMP_INTERPOLATION_LINEAR) {
+			/* Pointer to pixel data rows y, y+1 */
 			guchar	*ptr_blue_1, *ptr_blue_2, *ptr_red_1, *ptr_red_2;
-				/* Floating point row, fractional row */
+			/* Floating point row, fractional row */
 			gdouble	y_blue_d, y_red_d, d_y_blue, d_y_red;
-				/* Integer row y */
+			/* Integer row y */
 			gint	y_blue_1, y_red_1;
-				/* Floating point column, fractional column */
+			/* Floating point column, fractional column */
 			gdouble	x_blue_d, x_red_d, d_x_blue, d_x_red;
-				/* Integer column x, x+1 */
+			/* Integer column x, x+1 */
 			gint	x_blue_1, x_red_1, x_blue_2, x_red_2;
 
-				/* Get blue and red row */
+			/* Get blue and red row */
 			y_blue_d = scale_d (y, orig_height, scale_blue, params->y_blue);
 			y_red_d = scale_d (y, orig_height, scale_red, params->y_red);
 
-				/* Integer and fractional row */
+			/* Integer and fractional row */
 			y_blue_1 = floor (y_blue_d);
 			y_red_1 = floor (y_red_d);
 			d_y_blue = y_blue_d - y_blue_1;
 			d_y_red = y_red_d - y_red_1;
 
-				/* Load pixel data */
+			/* Load pixel data */
 			ptr_blue_1 = load_data (orig_width, bytes, srcPTR, src, src_row, src_iter,
 						band_adj, band_1, band_2, y_blue_1, y);
 			ptr_red_1 = load_data (orig_width, bytes, srcPTR, src, src_row, src_iter,
@@ -824,11 +817,11 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 						       band_adj, band_1, band_2, y_red_1+1, y);
 
 			for (x = x1; x < x2; ++x) {
-					/* Blue and red channel */
+				/* Blue and red channel */
 				x_blue_d = scale_d (x, orig_width, scale_blue, params->x_blue);
 				x_red_d = scale_d (x, orig_width, scale_red, params->x_red);
 
-					/* Integer and fractional column */
+				/* Integer and fractional column */
 				x_blue_1 = floor (x_blue_d);
 				x_red_1 = floor (x_red_d);
 				d_x_blue = x_blue_d - x_blue_1;
@@ -842,7 +835,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 				else
 					x_red_2 = x_red_1 + 1;
 
-					/* Interpolation */
+				/* Interpolation */
 				dest[(x-x1)*bytes] = bilinear (ptr_red_1[x_red_1*bytes],
 							       ptr_red_1[x_red_2*bytes],
 							       ptr_red_2[x_red_1*bytes],
@@ -854,24 +847,23 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 								   ptr_blue_2[x_blue_2*bytes+2],
 								   d_x_blue, d_y_blue);
 			}
-		}
-		else if (params->interpolation == GIMP_INTERPOLATION_CUBIC) {
-				/* Pointer to pixel data rows y-1, y */
+		} else if (params->interpolation == GIMP_INTERPOLATION_CUBIC) {
+			/* Pointer to pixel data rows y-1, y */
 			guchar	*ptr_blue_1, *ptr_blue_2, *ptr_red_1, *ptr_red_2;
-				/* Pointer to pixel data rows y+1, y+2 */
+			/* Pointer to pixel data rows y+1, y+2 */
 			guchar	*ptr_blue_3, *ptr_blue_4, *ptr_red_3, *ptr_red_4;
-				/* Floating point row, fractional row */
+			/* Floating point row, fractional row */
 			gdouble	y_blue_d, y_red_d, d_y_blue, d_y_red;
-				/* Integer row y */
+			/* Integer row y */
 			gint	y_blue_2, y_red_2;
-				/* Floating point column, fractional column */
+			/* Floating point column, fractional column */
 			gdouble	x_blue_d, x_red_d, d_x_blue, d_x_red;
-				/* Integer column x-1, x */
+			/* Integer column x-1, x */
 			gint	x_blue_1, x_red_1, x_blue_2, x_red_2;
-				/* Integer column x+1, x+2 */
+			/* Integer column x+1, x+2 */
 			gint	x_blue_3, x_red_3, x_blue_4, x_red_4;
 
-				/* Get blue and red row */
+			/* Get blue and red row */
 			y_blue_d = scale_d (y, orig_height, scale_blue, params->y_blue);
 			y_red_d = scale_d (y, orig_height, scale_red, params->y_red);
 
@@ -880,13 +872,13 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			d_y_blue = y_blue_d - y_blue_2;
 			d_y_red = y_red_d - y_red_2;
 
-				/* Row */
+			/* Row */
 			ptr_blue_2 = load_data (orig_width, bytes, srcPTR, src, src_row, src_iter,
 						band_adj, band_1, band_2, y_blue_2, y);
 			ptr_red_2 = load_data (orig_width, bytes, srcPTR, src, src_row, src_iter,
 					       band_adj, band_1, band_2, y_red_2, y);
 
-				/* Row - 1 */
+			/* Row - 1 */
 			if (y_blue_2 == 0)
 				ptr_blue_1 = ptr_blue_2;
 			else
@@ -898,7 +890,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 				ptr_red_1 = load_data (orig_width, bytes, srcPTR, src, src_row, src_iter,
 						       band_adj, band_1, band_2, y_red_2-1, y);
 
-				/* Row + 1 */
+			/* Row + 1 */
 			if (y_blue_2 == orig_height-1)
 				ptr_blue_3 = ptr_blue_2;
 			else
@@ -910,7 +902,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 				ptr_red_3 = load_data (orig_width, bytes, srcPTR, src, src_row, src_iter,
 						       band_adj, band_1, band_2, y_red_2+1, y);
 
-				/* Row + 2 */
+			/* Row + 2 */
 			if (y_blue_2 == orig_height-1)
 				ptr_blue_4 = ptr_blue_2;
 			else if (y_blue_2 == orig_height-2)
@@ -929,7 +921,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			for (x = x1; x < x2; ++x) {
 				double y1, y2, y3, y4;
 
-					/* Blue and red channel */
+				/* Blue and red channel */
 				x_blue_d = scale_d (x, orig_width, scale_blue, params->x_blue);
 				x_red_d = scale_d (x, orig_width, scale_red, params->x_red);
 
@@ -938,7 +930,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 				d_x_blue = x_blue_d - x_blue_2;
 				d_x_red = x_red_d - x_red_2;
 
-					/* Column - 1 */
+				/* Column - 1 */
 				if (x_blue_2 == 0)
 					x_blue_1 = x_blue_2;
 				else
@@ -948,7 +940,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 				else
 					x_red_1 = x_red_2 - 1;
 
-					/* Column + 1 */
+				/* Column + 1 */
 				if (x_blue_2 == orig_width-1)
 					x_blue_3 = x_blue_2;
 				else
@@ -958,7 +950,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 				else
 					x_red_3 = x_red_2 + 1;
 
-					/* Column + 2 */
+				/* Column + 2 */
 				if (x_blue_3 == orig_width-1)
 					x_blue_4 = x_blue_3;
 				else
