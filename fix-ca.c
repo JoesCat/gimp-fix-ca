@@ -96,8 +96,8 @@ static inline int	absolute (gint i);
 static inline guchar	clip (gdouble d);
 static inline guchar	bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy);
 static inline double	cubic (gint xm1, gint j, gint xp1, gint xp2, gdouble dx);
-static inline int	scale (gint i, gint size, gdouble scale_val, gdouble shift_val);
-static inline double	scale_d (gint i, gint size, gdouble scale_val, gdouble shift_val);
+static inline int	scale (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
+static inline double	scale_d (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
 static guchar *load_data (gint fullWidth, gint bpp, guchar *srcPTR,
 			  guchar *src[SOURCE_ROWS], gint src_row[SOURCE_ROWS],
 			  gint src_iter[SOURCE_ROWS], gint band_adj,
@@ -565,9 +565,9 @@ static int absolute (gint i)
 		return -i;
 }
 
-static int scale (gint i, gint size, gdouble scale_val, gdouble shift_val)
+static int scale (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val)
 {
-	gdouble d = (i - size/2) * scale_val + size/2 - shift_val;
+	gdouble d = (i - center) * scale_val + center - shift_val;
 	gint j = round_nearest (d);
 	if (j <= 0)
 		return 0;
@@ -577,9 +577,9 @@ static int scale (gint i, gint size, gdouble scale_val, gdouble shift_val)
 		return j;
 }
 
-static double scale_d (gint i, gint size, gdouble scale_val, gdouble shift_val)
+static double scale_d (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val)
 {
-	gdouble d = (i - size/2) * scale_val + size/2 - shift_val;
+	gdouble d = (i - center) * scale_val + center - shift_val;
 	if (d <= 0.0)
 		return 0.0;
 	else if (d >= size-1)
@@ -591,7 +591,7 @@ static double scale_d (gint i, gint size, gdouble scale_val, gdouble shift_val)
 static guchar *load_data (gint fullWidth, gint bpp, guchar *srcPTR,
 			  guchar *src[SOURCE_ROWS], gint src_row[SOURCE_ROWS],
 			  gint src_iter[SOURCE_ROWS], gint band_adj,
-			  gint band_1, gint band_2, gint y, gint iter)
+			  gint band_left, gint band_right, gint y, gint iter)
 {
 	gint	i, l, x, diff, diff_max = -1, row_best = -1;
 	int	iter_oldest;
@@ -621,12 +621,10 @@ static guchar *load_data (gint fullWidth, gint bpp, guchar *srcPTR,
 		}
 	}
 
-	x = ((fullWidth * y) + band_1) * bpp;
+	x = ((fullWidth * y) + band_left) * bpp;
 	i = band_adj * bpp;
-	l = i + (band_2-band_1+1) * bpp;
-	for (; i < l; ++i) {
-		src[row_best][i] = srcPTR[x + i];
-	}
+	l = i + (band_right-band_left+1) * bpp;
+	memcpy (&src[row_best][i], &srcPTR[x + i], l - i);
 	src_row[row_best] = y;
 	src_iter[row_best] = iter;
 	return src[row_best];
@@ -678,7 +676,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 	gint	i;
 
 	guchar	*dest;
-	gint	x, y, b, max_dim;
+	gint	x, y, x_center, y_center, max_dim;
 	gdouble	scale_blue, scale_red, scale_max;
 
 	gdouble	x_shift_max, x_shift_min;
@@ -702,6 +700,8 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 	}
 	dest = g_new (guchar, (x2-x1) * bytes);
 
+	x_center = orig_width / 2;
+	y_center = orig_height / 2;
 	if (orig_width > orig_height)
 		max_dim = orig_width;
 	else
@@ -725,8 +725,8 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 	}
 
 	/* Horizontal band to load for each row */
-	band_1 = scale (x1, orig_width, scale_max, x_shift_max);
-	band_2 = scale (x2-1, orig_width, scale_max, x_shift_min);
+	band_1 = scale (x1, x_center, orig_width, scale_max, x_shift_max);
+	band_2 = scale (x2-1, x_center, orig_width, scale_max, x_shift_min);
 	if (band_1 > x1)	/* Make sure green is also covered */
 		band_1 = x1;
 	if (band_2 < x2-1)
@@ -763,8 +763,8 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			gint	y_blue, y_red, x_blue, x_red;
 
 			/* Get blue and red row */
-			y_blue = scale (y, orig_height, scale_blue, params->y_blue);
-			y_red = scale (y, orig_height, scale_red, params->y_red);
+			y_blue = scale (y, y_center, orig_height, scale_blue, params->y_blue);
+			y_red = scale (y, y_center, orig_height, scale_red, params->y_red);
 			ptr_blue = load_data (orig_width, bytes, srcPTR, src, src_row, src_iter,
 					      band_adj, band_1, band_2, y_blue, y);
 			ptr_red = load_data (orig_width, bytes, srcPTR, src, src_row, src_iter,
@@ -772,8 +772,8 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 
 			for (x = x1; x < x2; ++x) {
 				/* Blue and red channel */
-				x_blue = scale (x, orig_width, scale_blue, params->x_blue);
-				x_red = scale (x, orig_width, scale_red, params->x_red);
+				x_blue = scale (x, x_center, orig_width, scale_blue, params->x_blue);
+				x_red = scale (x, x_center, orig_width, scale_red, params->x_red);
 
 				dest[(x-x1)*bytes] = ptr_red[x_red*bytes];
 				dest[(x-x1)*bytes + 2] = ptr_blue[x_blue*bytes + 2];
@@ -791,8 +791,8 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			gint	x_blue_1, x_red_1, x_blue_2, x_red_2;
 
 			/* Get blue and red row */
-			y_blue_d = scale_d (y, orig_height, scale_blue, params->y_blue);
-			y_red_d = scale_d (y, orig_height, scale_red, params->y_red);
+			y_blue_d = scale_d (y, y_center, orig_height, scale_blue, params->y_blue);
+			y_red_d = scale_d (y, y_center, orig_height, scale_red, params->y_red);
 
 			/* Integer and fractional row */
 			y_blue_1 = floor (y_blue_d);
@@ -818,8 +818,8 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 
 			for (x = x1; x < x2; ++x) {
 				/* Blue and red channel */
-				x_blue_d = scale_d (x, orig_width, scale_blue, params->x_blue);
-				x_red_d = scale_d (x, orig_width, scale_red, params->x_red);
+				x_blue_d = scale_d (x, x_center, orig_width, scale_blue, params->x_blue);
+				x_red_d = scale_d (x, x_center, orig_width, scale_red, params->x_red);
 
 				/* Integer and fractional column */
 				x_blue_1 = floor (x_blue_d);
@@ -864,8 +864,8 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			gint	x_blue_3, x_red_3, x_blue_4, x_red_4;
 
 			/* Get blue and red row */
-			y_blue_d = scale_d (y, orig_height, scale_blue, params->y_blue);
-			y_red_d = scale_d (y, orig_height, scale_red, params->y_red);
+			y_blue_d = scale_d (y, y_center, orig_height, scale_blue, params->y_blue);
+			y_red_d = scale_d (y, y_center, orig_height, scale_red, params->y_red);
 
 			y_blue_2 = floor (y_blue_d);
 			y_red_2 = floor (y_red_d);
@@ -922,8 +922,8 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 				double y1, y2, y3, y4;
 
 				/* Blue and red channel */
-				x_blue_d = scale_d (x, orig_width, scale_blue, params->x_blue);
-				x_red_d = scale_d (x, orig_width, scale_red, params->x_red);
+				x_blue_d = scale_d (x, x_center, orig_width, scale_blue, params->x_blue);
+				x_red_d = scale_d (x, x_center, orig_width, scale_red, params->x_red);
 
 				x_blue_2 = floor (x_blue_d);
 				x_red_2 = floor (x_red_d);
