@@ -86,15 +86,16 @@ static void	run (const gchar *name, gint nparams,
 static void	fix_ca (gint32 drawable_ID, FixCaParams *params);
 static void	fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			       gint orig_width, gint orig_height,
-			       gint bytes, FixCaParams *params,
+			       gint bytes, gint bpc, FixCaParams *params,
 			       gint x1, gint x2, gint y1, gint y2,
 			       gboolean show_progress);
 static gboolean	fix_ca_dialog (gint32 drawable_ID, FixCaParams *params);
 static void	preview_update (GimpPreview *preview, FixCaParams *params);
-static inline int	round_nearest (gdouble d);
-static inline int	absolute (gint i);
-static inline guchar	clip (gdouble d);
-static inline guchar	bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy);
+static int	color_size (const Babl *format);
+static int	round_nearest (gdouble d);
+static int	absolute (gint i);
+static guchar	clip (gdouble d);
+static guchar	bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy);
 static inline double	cubic (gint xm1, gint j, gint xp1, gint xp2, gdouble dx);
 static inline int	scale (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
 static inline double	scale_d (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
@@ -253,7 +254,7 @@ static void fix_ca (gint32 drawable_ID, FixCaParams *params)
 	GeglBuffer *srcBuf, *destBuf;
 	guchar     *srcImg, *destImg;
 	const Babl *format;
-	gint       x, y, width, height, xImg, yImg, bppImg;
+	gint       x, y, width, height, xImg, yImg, bppImg, bpcImg;
 
 	/* get dimensions */
 	if (!(gimp_drawable_mask_intersect(drawable_ID, &x, &y, &width, &height)))
@@ -270,6 +271,9 @@ static void fix_ca (gint32 drawable_ID, FixCaParams *params)
 
 	format = gimp_drawable_get_format (drawable_ID);
 	bppImg = babl_format_get_bytes_per_pixel (format);
+	bpcImg = color_size (format);
+	if (bpcImg <= -99)
+		return;
 
 	//gegl_init (NULL, NULL);
 
@@ -286,7 +290,7 @@ static void fix_ca (gint32 drawable_ID, FixCaParams *params)
 			 format, srcImg, GEGL_AUTO_ROWSTRIDE, GEGL_ABYSS_NONE);
 
 	/* adjust pixel regions from srcImg to destImg, according to params */
-	fix_ca_region (srcImg, destImg, xImg, yImg, bppImg, params, \
+	fix_ca_region (srcImg, destImg, xImg, yImg, bppImg, bpcImg, params, \
 		       x, (x + width), y, (y + height), TRUE);
 
 	gegl_buffer_set (destBuf, GEGL_RECTANGLE(x, y, width, height), 0, \
@@ -501,9 +505,9 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 static void preview_update (GimpPreview *preview, FixCaParams *params)
 {
 	gint32	preview_ID;
-	gint	i, x, y, width, height, xImg, yImg, bppImg, size;
+	gint	i, x, y, width, height, xImg, yImg, bppImg, bpcImg, size;
 	GeglBuffer *srcBuf;
-	guchar	*srcImg, *destImg, *prevImg;
+	guchar	*srcImg, *destImg, *prevImg, *ptr;
 	const Babl *format;
 
 	preview_ID = gimp_drawable_preview_get_drawable_id (preview);
@@ -513,6 +517,13 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 
 	format = gimp_drawable_get_format (preview_ID);
 	bppImg = babl_format_get_bytes_per_pixel(format);
+	bpcImg = color_size (format);
+#ifdef DEBUG_TIME
+	printf("preview_update(), bppImg=%d, bpcImg=%d, x=%d y=%d w=%d h=%d\n", \
+		bppImg, bpcImg, x, y, width, height);
+#endif
+	if (bpcImg <= -99)
+		return;
 
 	xImg = gimp_drawable_width(preview_ID);
 	yImg = gimp_drawable_height(preview_ID);
@@ -523,9 +534,9 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 
 	srcBuf  = gimp_drawable_get_buffer (preview_ID);
 	gegl_buffer_get (srcBuf, GEGL_RECTANGLE(0, 0, xImg, yImg), 1.0, \
-	 format, srcImg, GEGL_AUTO_ROWSTRIDE, GEGL_ABYSS_NONE);
+			 format, srcImg, GEGL_AUTO_ROWSTRIDE, GEGL_ABYSS_NONE);
 
-	fix_ca_region (srcImg, destImg, xImg, yImg, bppImg, params, \
+	fix_ca_region (srcImg, destImg, xImg, yImg, bppImg, bpcImg, params, \
 		       0, xImg, y, (y + height), FALSE);
 
 	for (i = 0; i < height; i++) {
@@ -540,6 +551,38 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 	g_free(prevImg);
 	g_free(destImg);
 	g_free(srcImg);
+}
+
+static int color_size (const Babl *format)
+{
+	int bpc = babl_format_get_bytes_per_pixel (format);
+	const char *str = babl_get_name (format);
+#ifdef DEBUG_TIME
+	printf("color_size(), format=<%s>, bytes per pixel=%d\n", str, bpc);
+#endif
+	if (strstr(str, "double") != NULL)
+		return -8; /* IEEE 754 double precision */
+	if (strstr(str, "float") != NULL)
+		return -4; /* IEEE 754 single precision */
+	if (strstr(str, "half") != NULL)
+		return -2; /* IEEE 754 half precision */
+	if (strstr(str, "u15") != NULL)
+		return -99; /* TODO for another day */
+	if (strstr(str, " u") == NULL)
+		return -99; /* not unsigned integer size */
+	if (bpc > 32)
+		return -99; /* unknown size */
+	if (bpc >= 24)
+		return 8;
+	if (bpc >= 12)
+		return 4;
+	if (bpc >= 6)
+		return 2;
+	if (bpc >= 3)
+		return 1;
+
+	/* probably RGB in 1 byte, TODO for another day */
+	return -99;
 }
 
 static int round_nearest (gdouble d)
@@ -666,14 +709,14 @@ static double cubic (gint xm1, gint x, gint xp1, gint xp2, gdouble dx)
 }
 
 static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
-			   gint orig_width, gint orig_height, gint bytes,
+			   gint orig_width, gint orig_height, gint bytes, gint bpc,
 			   FixCaParams *params, gint x1, gint x2, gint y1, gint y2,
 			   gboolean show_progress)
 {
 	guchar	*src[SOURCE_ROWS];
 	gint	src_row[SOURCE_ROWS];
 	gint	src_iter[SOURCE_ROWS];
-	gint	i;
+	gint	b, i;
 
 	guchar	*dest;
 	gint	x, y, x_center, y_center, max_dim;
@@ -748,6 +791,10 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 	}
 
 	band_adj = band_1 * bytes;
+	b = absolute (bpc);
+#ifdef DEBUG_TIME
+	printf("fix_ca_region(), b=%d, %d, %d\n", bpc, b, bytes);
+#endif
 
 	for (y = y1; y < y2; ++y) {
 		/* Get current row, for green channel */
@@ -775,8 +822,10 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 				x_blue = scale (x, x_center, orig_width, scale_blue, params->x_blue);
 				x_red = scale (x, x_center, orig_width, scale_red, params->x_red);
 
-				dest[(x-x1)*bytes] = ptr_red[x_red*bytes];
-				dest[(x-x1)*bytes + 2] = ptr_blue[x_blue*bytes + 2];
+				memcpy (&dest[(x-x1)*bytes + 2*b], \
+					&ptr_blue[x_blue*bytes + 2*b], b);
+				memcpy (&dest[(x-x1)*bytes], \
+					&ptr_red[x_red*bytes], b);
 			}
 		} else if (params->interpolation == GIMP_INTERPOLATION_LINEAR) {
 			/* Pointer to pixel data rows y, y+1 */
