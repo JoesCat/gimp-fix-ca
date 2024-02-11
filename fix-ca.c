@@ -92,11 +92,15 @@ static void	fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 static gboolean	fix_ca_dialog (gint32 drawable_ID, FixCaParams *params);
 static void	preview_update (GimpPreview *preview, FixCaParams *params);
 static int	color_size (const Babl *format);
+static gdouble	get_pixel (guchar *ptr, gint bpc);
+static void	set_pixel (guchar *dest, gdouble d, gint bpc);
 static int	round_nearest (gdouble d);
 static int	absolute (gint i);
 static guchar	clip (gdouble d);
 static guchar	bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy);
 static inline double	cubic (gint xm1, gint j, gint xp1, gint xp2, gdouble dx);
+static void	saturate (guchar *dest, gint width,
+			  gint bpp, gint bpc, gdouble s_scale);
 static inline int	scale (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
 static inline double	scale_d (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
 static guchar *load_data (gint fullWidth, gint bpp, guchar *srcPTR,
@@ -180,6 +184,7 @@ static void run (const gchar *name, gint nparams,
 	fix_ca_params.red = fix_ca_params_default.red;
 	fix_ca_params.update_preview = fix_ca_params_default.update_preview;
 	fix_ca_params.interpolation = fix_ca_params_default.interpolation;
+	fix_ca_params.saturation = fix_ca_params_default.saturation;
 	fix_ca_params.x_blue = fix_ca_params_default.x_blue;
 	fix_ca_params.x_red = fix_ca_params_default.x_red;
 	fix_ca_params.y_blue = fix_ca_params_default.y_blue;
@@ -507,7 +512,7 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 	gint32	preview_ID;
 	gint	i, x, y, width, height, xImg, yImg, bppImg, bpcImg, size;
 	GeglBuffer *srcBuf;
-	guchar	*srcImg, *destImg, *prevImg, *ptr;
+	guchar	*srcImg, *destImg, *prevImg;
 	const Babl *format;
 
 	preview_ID = gimp_drawable_preview_get_drawable_id (preview);
@@ -583,6 +588,69 @@ static int color_size (const Babl *format)
 
 	/* probably RGB in 1 byte, TODO for another day */
 	return -99;
+}
+
+static gdouble get_pixel (guchar *ptr, gint bpc)
+{
+	/* Returned value is in the range of [0.0..1.0]. */
+	gdouble ret = 0.0;
+	if (bpc == 1) {
+		ret += *ptr;
+		ret /= 255;
+	} else if (bpc == 2) {
+		uint16_t *p = (uint16_t *)(ptr);
+		ret += *p;
+		ret /= 65535;
+	} else if (bpc == 4) {
+		uint32_t *p = (uint32_t *)(ptr);
+		ret += *p;
+		ret /= 4294967295;
+	} else if (bpc == 8) {
+		uint64_t *p = (uint64_t *)(ptr);
+		long double lret;
+		lret += *p;
+		lret /= 18446744073709551615L;
+		ret = lret;
+	} else if (bpc == -8) {
+		double *p = (double *)(ptr);
+		ret += *p;
+	} else if (bpc == -4) {
+		float *p = (float *)(ptr);
+		ret += *p;
+	//} else if (bpc == -2) {
+	//	half *p = ptr;
+	//	ret += *p;
+	}
+
+	return ret;
+}
+
+static void set_pixel (guchar *dest, gdouble d, gint bpc)
+{
+	/* input value is in the range of [0.0..1.0]. */
+	if (bpc == 1) {
+		*dest = round(d * 255);
+	}  else if (bpc == 2) {
+		uint16_t *p = (uint16_t *)(dest);
+		*p = round(d * 655535);
+	} else if (bpc == 4) {
+		uint32_t *p = (uint32_t *)(dest);
+		*p = round(d * 4294967295);
+	} else if (bpc == 8) {
+		uint64_t *p = (uint64_t *)(dest);
+		*p = roundl(d * 18446744073709551615L);
+	} else if (bpc == -8) {
+		double *p = (double *)(dest);
+		*p = d;
+	} else if (bpc == -4) {
+		float *p = (float *)(dest);
+		*p = (float)(d);
+	//} else if (bpc == -2) {
+	//	half *p = (half *)(dest);
+	//	*p = d;
+	}
+
+	return;
 }
 
 static int round_nearest (gdouble d)
@@ -706,6 +774,45 @@ static double cubic (gint xm1, gint x, gint xp1, gint xp2, gdouble dx)
 	return ((( ( - xm1 + 3 * x - 3 * xp1 + xp2 ) * dx +
                  ( 2 * xm1 - 5 * x + 4 * xp1 - xp2 ) ) * dx +
                                 ( - xm1 + xp1 ) ) * dx + (x + x) ) / 2.0;
+}
+
+static void saturate (guchar *dest, gint width,
+		      gint bpp, gint bpc, gdouble s_scale)
+{
+	GimpRGB	rgb;
+	GimpHSV	hsv;
+	gint	b = absolute(bpc);
+	dest += b;	/* point to green before looping */
+#ifdef DEBUG_TIME
+	width--;
+	rgb.r = get_pixel (dest-b, bpc);
+	rgb.g = get_pixel (dest  , bpc);
+	rgb.b = get_pixel (dest+b, bpc);
+	gimp_rgb_to_hsv (&rgb, &hsv);
+	hsv.s *= s_scale;
+	if (hsv.s > 1.0)
+		hsv.s = 1.0;
+	gimp_hsv_to_rgb (&hsv, &rgb);
+	set_pixel (dest-b, rgb.r, bpc);
+	set_pixel (dest  , rgb.g, bpc);
+	set_pixel (dest+b, rgb.b, bpc);
+	dest += bpp;
+	printf("saturate(), b=%d r=%d=%g g=%d=%g b=%d=%g, h%g s%g v%g, ", b, *(dest-b), rgb.r, *dest, rgb.g, *(dest+b), rgb.b, hsv.h, hsv.s, hsv.v);
+#endif
+	while (width-- > 0) {
+		rgb.r = get_pixel (dest-b, bpc);
+		rgb.g = get_pixel (dest  , bpc);
+		rgb.b = get_pixel (dest+b, bpc);
+		gimp_rgb_to_hsv (&rgb, &hsv);
+		hsv.s *= s_scale;
+		if (hsv.s > 1.0)
+			hsv.s = 1.0;
+		gimp_hsv_to_rgb (&hsv, &rgb);
+		set_pixel (dest-b, rgb.r, bpc);
+		set_pixel (dest  , rgb.g, bpc);
+		set_pixel (dest+b, rgb.b, bpc);
+		dest += bpp;
+	}
 }
 
 static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
@@ -1058,21 +1165,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 		}
 
 		if (!show_progress && params->saturation != 0.0) {
-			gdouble	s_scale = 1+params->saturation/100;
-			for (x = x1; x < x2; ++x) {
-				int r = dest[(x-x1)*bytes];
-				int g = dest[(x-x1)*bytes + 1];
-				int b = dest[(x-x1)*bytes + 2];
-				gimp_rgb_to_hsv_int (&r, &g, &b);
-				g *= s_scale;
-				if (g > 255)
-					g = 255;
-				dest[(x-x1)*bytes + 1] = (guchar)(g);
-				gimp_hsv_to_rgb_int (&r, &g, &b);
-				dest[(x-x1)*bytes] = (guchar)(r);
-				dest[(x-x1)*bytes + 1] = (guchar)(g);
-				dest[(x-x1)*bytes + 2] = (guchar)(b);
-			}
+			saturate (dest, x2-x1, bytes, bpc, 1+params->saturation/100);
 		}
 
 		set_data (dstPTR, dest, bytes, orig_width, x1, y, (x2-x1));
