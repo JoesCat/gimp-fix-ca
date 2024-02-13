@@ -1,7 +1,7 @@
 /*
 	fix-ca.c	Fix Chromatic Aberration Gimp Plug-In
-	Copyright (c) 2006, 2007 Kriang Lerdsuwanakij
-	email:		lerdsuwa@users.sourceforge.net
+	Copyright (c) 2006, 2007 Kriang Lerdsuwanakij - (original author)
+	Copyright (c) 2023, 2024 Jose Da Silva (updates and improvements)
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -96,12 +96,14 @@ static gdouble	get_pixel (guchar *ptr, gint bpc);
 static void	set_pixel (guchar *dest, gdouble d, gint bpc);
 static int	round_nearest (gdouble d);
 static int	absolute (gint i);
-static guchar	clip (gdouble d);
 static gdouble	clip_d (gdouble d);
 static void	bilinear (guchar *dest, \
 			  guchar *yrow0, guchar *yrow1, gint x0, gint x1, \
 			  gint bpp, gint bpc, gdouble dx, gdouble dy);
-static inline double	cubic (gint xm1, gint j, gint xp1, gint xp2, gdouble dx);
+static double	cubicY (guchar *yrow, gint bpp, gint bpc, gdouble dx, \
+			gint m1, gint x0, gint p1, gint p2);
+static void	cubicX (guchar *dest, gint bpp, gint bpc, gdouble dy, \
+			gdouble ym1, gdouble x, gdouble xp1, gdouble xp2);
 static void	saturate (guchar *dest, gint width,
 			  gint bpp, gint bpc, gdouble s_scale);
 static int	scale (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
@@ -143,9 +145,9 @@ static void query (void)
 				"lens.  It works by shifting red and blue "
 				"components of image pixels in the specified "
 				"amounts.",
-				"Kriang Lerdsuwanakij <lerdsuwa@users.sourceforge.net>",
+				"https://github.com/JoesCat/gimp-fix-ca/",
 				"Kriang Lerdsuwanakij",
-				"2006, 2007",
+				"2024",
 				N_("Chromatic Aberration..."),
 				"RGB*",
 				GIMP_PLUGIN,
@@ -513,10 +515,11 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 static void preview_update (GimpPreview *preview, FixCaParams *params)
 {
 	gint32	preview_ID;
-	gint	i, x, y, width, height, xImg, yImg, bppImg, bpcImg, size;
+	gint	b, i, j, x, y, width, height, xImg, yImg, bppImg, bpcImg, size;
 	GeglBuffer *srcBuf;
 	guchar	*srcImg, *destImg, *prevImg;
 	const Babl *format;
+	gdouble d;
 
 	preview_ID = gimp_drawable_preview_get_drawable_id (preview);
 
@@ -547,13 +550,21 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 	fix_ca_region (srcImg, destImg, xImg, yImg, bppImg, bpcImg, params, \
 		       0, xImg, y, (y + height), FALSE);
 
+	b = absolute (bpcImg);
 	for (i = 0; i < height; i++) {
+		if (b == 1) {
 		memcpy (&prevImg[width * i * bppImg],
 			&destImg[(xImg * (y + i) + x) * bppImg],
 			width * bppImg);
+		} else {
+			for (j = 0; j < width*bppImg/b; j++) {
+				d = get_pixel (&destImg[(xImg*(y+i)+x)*bppImg+j*b], bpcImg);
+				set_pixel (&prevImg[width*i*bppImg/b+j], d, 1);
+			}
+		}
 	}
 
-	gimp_preview_draw_buffer (preview, prevImg, width * bppImg);
+	gimp_preview_draw_buffer (preview, prevImg, width * bppImg/b);
 
 	g_object_unref (srcBuf);
 	g_free(prevImg);
@@ -753,17 +764,6 @@ static void set_data (guchar *dstPTR, guchar *dest, gint bpp, \
 	memcpy (&dstPTR[x], dest, l);
 }
 
-static guchar clip (gdouble d)
-{
-	gint	i = round_nearest (d);
-	if (i <= 0)
-		return 0;
-	else if (i >= 255)
-		return 255;
-	else
-		return (guchar)(i);
-}
-
 static gdouble clip_d (gdouble d)
 {
 	if (d <= 0.0)
@@ -777,22 +777,40 @@ static void bilinear (guchar *dest, \
 		      guchar *yrow0, guchar *yrow1, gint x0, gint x1, \
 		      gint bpp, gint bpc, gdouble dx, gdouble dy)
 {
-	long double d, x0y0, x1y0, x0y1, x1y1;
+	gdouble d, x0y0, x1y0, x0y1, x1y1;
 	x0y0 = get_pixel (&yrow0[x0*bpp], bpc);
 	x1y0 = get_pixel (&yrow0[x1*bpp], bpc);
 	x0y1 = get_pixel (&yrow1[x0*bpp], bpc);
 	x1y1 = get_pixel (&yrow1[x1*bpp], bpc);
-	d = clip_d ((1-dy) * (x0y0 + dx * (x1y0-x0y0))
-		      +dy  * (x0y1 + dx * (x1y1-x0y1)));
-	set_pixel (dest, d, bpc);
+	d = (1-dy) * (x0y0 + dx * (x1y0-x0y0))
+	     + dy  * (x0y1 + dx * (x1y1-x0y1));
+	set_pixel (dest, clip_d(d), bpc);
 }
 
-static double cubic (gint xm1, gint x, gint xp1, gint xp2, gdouble dx)
+static gdouble cubicY (guchar *yrow, gint bpp, gint bpc, gdouble dx, \
+			   gint m1, gint x0, gint p1, gint p2)
 {
 	/* Catmull-Rom from Gimp gimpdrawable-transform.c */
-	return ((( ( - xm1 + 3 * x - 3 * xp1 + xp2 ) * dx +
-                 ( 2 * xm1 - 5 * x + 4 * xp1 - xp2 ) ) * dx +
-                                ( - xm1 + xp1 ) ) * dx + (x + x) ) / 2.0;
+	gdouble d, xm1, x, xp1, xp2;
+	xm1 = get_pixel (&yrow[m1*bpp], bpc);
+	x   = get_pixel (&yrow[x0*bpp], bpc);
+	xp1 = get_pixel (&yrow[p1*bpp], bpc);
+	xp2 = get_pixel (&yrow[p2*bpp], bpc);
+	d = ((( ( - xm1 + 3 * x - 3 * xp1 + xp2 ) * dx +
+	      ( 2 * xm1 - 5 * x + 4 * xp1 - xp2 ) ) * dx +
+			     ( - xm1 + xp1 ) ) * dx + (x + x) ) / 2.0;
+	return d;
+}
+
+static void cubicX (guchar *dest, gint bpp, gint bpc, gdouble dy, \
+		    gdouble ym1, gdouble y, gdouble yp1, gdouble yp2)
+{
+	/* Catmull-Rom from Gimp gimpdrawable-transform.c */
+	gdouble d;
+	d = ((( ( - ym1 + 3 * y - 3 * yp1 + yp2 ) * dy +
+	      ( 2 * ym1 - 5 * y + 4 * yp1 - yp2 ) ) * dy +
+			     ( - ym1 + yp1 ) ) * dy + (y + y) ) / 2.0;
+	set_pixel (dest, clip_d(d), bpc);
 }
 
 static void saturate (guchar *dest, gint width,
@@ -1115,51 +1133,25 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 				else
 					x_red_4 = x_red_3 + 1;
 
-				y1 = cubic (ptr_red_1[x_red_1*bytes],
-					    ptr_red_1[x_red_2*bytes],
-					    ptr_red_1[x_red_3*bytes],
-					    ptr_red_1[x_red_4*bytes],
-					    d_x_red);
-				y2 = cubic (ptr_red_2[x_red_1*bytes],
-					    ptr_red_2[x_red_2*bytes],
-					    ptr_red_2[x_red_3*bytes],
-					    ptr_red_2[x_red_4*bytes],
-					    d_x_red);
-				y3 = cubic (ptr_red_3[x_red_1*bytes],
-					    ptr_red_3[x_red_2*bytes],
-					    ptr_red_3[x_red_3*bytes],
-					    ptr_red_3[x_red_4*bytes],
-					    d_x_red);
-				y4 = cubic (ptr_red_3[x_red_1*bytes],
-					    ptr_red_3[x_red_2*bytes],
-					    ptr_red_3[x_red_3*bytes],
-					    ptr_red_3[x_red_4*bytes],
-					    d_x_red);
+				y1 = cubicY (ptr_blue_1+2*b, bytes, bpc, d_x_blue, \
+					     x_blue_1, x_blue_2, x_blue_3, x_blue_4);
+				y2 = cubicY (ptr_blue_2+2*b, bytes, bpc, d_x_blue, \
+					     x_blue_1, x_blue_2, x_blue_3, x_blue_4);
+				y3 = cubicY (ptr_blue_3+2*b, bytes, bpc, d_x_blue, \
+					     x_blue_1, x_blue_2, x_blue_3, x_blue_4);
+				y4 = cubicY (ptr_blue_4+2*b, bytes, bpc, d_x_blue, \
+					     x_blue_1, x_blue_2, x_blue_3, x_blue_4);
+				cubicX ((dest+(x-x1)*bytes+2*b), bytes, bpc, d_y_blue, y1, y2, y3, y4);
 
-				dest[(x-x1)*bytes] = clip (cubic (y1, y2, y3, y4, d_y_red));
-
-				y1 = cubic (ptr_blue_1[x_blue_1*bytes+2],
-					    ptr_blue_1[x_blue_2*bytes+2],
-					    ptr_blue_1[x_blue_3*bytes+2],
-					    ptr_blue_1[x_blue_4*bytes+2],
-					    d_x_blue);
-				y2 = cubic (ptr_blue_2[x_blue_1*bytes+2],
-					    ptr_blue_2[x_blue_2*bytes+2],
-					    ptr_blue_2[x_blue_3*bytes+2],
-					    ptr_blue_2[x_blue_4*bytes+2],
-					    d_x_blue);
-				y3 = cubic (ptr_blue_3[x_blue_1*bytes+2],
-					    ptr_blue_3[x_blue_2*bytes+2],
-					    ptr_blue_3[x_blue_3*bytes+2],
-					    ptr_blue_3[x_blue_4*bytes+2],
-					    d_x_blue);
-				y4 = cubic (ptr_blue_3[x_blue_1*bytes+2],
-					    ptr_blue_3[x_blue_2*bytes+2],
-					    ptr_blue_3[x_blue_3*bytes+2],
-					    ptr_blue_3[x_blue_4*bytes+2],
-					    d_x_blue);
-
-				dest[(x-x1)*bytes + 2] = clip (cubic (y1, y2, y3, y4, d_y_blue));
+				y1 = cubicY (ptr_red_1, bytes, bpc, d_x_red, \
+					     x_red_1, x_red_2, x_red_3, x_red_4);
+				y2 = cubicY (ptr_red_2, bytes, bpc, d_x_red, \
+					     x_red_1, x_red_2, x_red_3, x_red_4);
+				y3 = cubicY (ptr_red_3, bytes, bpc, d_x_red, \
+					     x_red_1, x_red_2, x_red_3, x_red_4);
+				y4 = cubicY (ptr_red_4, bytes, bpc, d_x_red, \
+					     x_red_1, x_red_2, x_red_3, x_red_4);
+				cubicX ((dest+(x-x1)*bytes), bytes, bpc, d_y_red, y1, y2, y3, y4);
 			}
 		}
 
@@ -1190,17 +1182,18 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 
 static void fix_ca_help (const gchar *help_id, gpointer help_data)
 {
-	gimp_message ("Select the amount in pixels to shift for blue "
-		      "and red components of image.  "
-		      "Lateral chromatic aberration means there is no "
-		      "aberration at the image center but it increases gradually "
-		      "toward the edge of image.  "
-		      "X axis and Y axis aberrations mean the amount of aberration "
-		      "is the same throughout the image.\n\n"
-		      "For lateral aberration, the number of pixel is the amount shifted "
-		      "at the extreme edge of the image (width or height whatever is the larger), "
-		      "and positive number means moving in outward "
-		      "direction.\n\n"
-		      "For X axis and Y axis, the number of pixel is the actual shift, "
-		      "and positive number means moving rightward or upward.");
+	gimp_message ("The image to modify is in RGB format.  The green pixels "
+		      "are kept stationary, and you can shift the red and blue "
+		      "colors within a range of {-10..+10} pixels.\n\n"
+		      "Lateral Chromatic Aberration is due to camera lense(s) "
+		      "with no aberration at the lense center, and increasing "
+		      "gradually toward the edges of the image.\n\n"
+		      "Directional X and Y axis aberrations are a flat amount "
+		      "of aberration due to image seen through something like "
+		      "glass, water, or another medium of different density.  "
+		      "You can shift pixels up/left {-10..+10} down/right.\n\n"
+		      "Lateral aberration correction is applied first, since "
+		      "the lense(s) are closest to the film or sensor, and "
+		      "directional corrections applied last since this is the "
+		      "furthest away from the camera.");
 }

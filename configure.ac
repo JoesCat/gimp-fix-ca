@@ -26,7 +26,7 @@ m4_define([fix_ca_package_name], [gimp-fix-ca])
 
 #--------------------------------------------------------------------------
 AC_INIT([fix-ca],[fix_ca_version],[https://github.com/JoesCat/gimp-fix-ca/issues],
-	[fix_ca_package_name],[http://kcd.sourceforge.net/fix-ca.php/])
+	[fix_ca_package_name],[https://github.com/JoesCat/gimp-fix-ca])
 #--------------------------------------------------------------------------
 AC_CONFIG_SRCDIR([fix-ca.c])
 AC_CONFIG_MACRO_DIR([m4])
