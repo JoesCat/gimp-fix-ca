@@ -97,12 +97,15 @@ static void	set_pixel (guchar *dest, gdouble d, gint bpc);
 static int	round_nearest (gdouble d);
 static int	absolute (gint i);
 static guchar	clip (gdouble d);
-static guchar	bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy);
+static gdouble	clip_d (gdouble d);
+static void	bilinear (guchar *dest, \
+			  guchar *yrow0, guchar *yrow1, gint x0, gint x1, \
+			  gint bpp, gint bpc, gdouble dx, gdouble dy);
 static inline double	cubic (gint xm1, gint j, gint xp1, gint xp2, gdouble dx);
 static void	saturate (guchar *dest, gint width,
 			  gint bpp, gint bpc, gdouble s_scale);
-static inline int	scale (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
-static inline double	scale_d (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
+static int	scale (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
+static double	scale_d (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
 static guchar *load_data (gint fullWidth, gint bpp, guchar *srcPTR,
 			  guchar *src[SOURCE_ROWS], gint src_row[SOURCE_ROWS],
 			  gint src_iter[SOURCE_ROWS], gint band_adj,
@@ -607,7 +610,7 @@ static gdouble get_pixel (guchar *ptr, gint bpc)
 		ret /= 4294967295;
 	} else if (bpc == 8) {
 		uint64_t *p = (uint64_t *)(ptr);
-		long double lret;
+		long double lret = 0.0;
 		lret += *p;
 		lret /= 18446744073709551615L;
 		ret = lret;
@@ -632,7 +635,7 @@ static void set_pixel (guchar *dest, gdouble d, gint bpc)
 		*dest = round(d * 255);
 	}  else if (bpc == 2) {
 		uint16_t *p = (uint16_t *)(dest);
-		*p = round(d * 655535);
+		*p = round(d * 65535);
 	} else if (bpc == 4) {
 		uint32_t *p = (uint32_t *)(dest);
 		*p = round(d * 4294967295);
@@ -761,11 +764,27 @@ static guchar clip (gdouble d)
 		return (guchar)(i);
 }
 
-static guchar bilinear (gint xy, gint x1y, gint xy1, gint x1y1, gdouble dx, gdouble dy)
+static gdouble clip_d (gdouble d)
 {
-	double d = (1-dy) * (xy + dx * (x1y-xy))
-		   + dy * (xy1 + dx * (x1y1-xy1));
-	return clip (d);
+	if (d <= 0.0)
+		return 0.0;
+	if (d >= 1.0)
+		return 1.0;
+	return d;
+}
+
+static void bilinear (guchar *dest, \
+		      guchar *yrow0, guchar *yrow1, gint x0, gint x1, \
+		      gint bpp, gint bpc, gdouble dx, gdouble dy)
+{
+	long double d, x0y0, x1y0, x0y1, x1y1;
+	x0y0 = get_pixel (&yrow0[x0*bpp], bpc);
+	x1y0 = get_pixel (&yrow0[x1*bpp], bpc);
+	x0y1 = get_pixel (&yrow1[x0*bpp], bpc);
+	x1y1 = get_pixel (&yrow1[x1*bpp], bpc);
+	d = clip_d ((1-dy) * (x0y0 + dx * (x1y0-x0y0))
+		      +dy  * (x0y1 + dx * (x1y1-x0y1)));
+	set_pixel (dest, d, bpc);
 }
 
 static double cubic (gint xm1, gint x, gint xp1, gint xp2, gdouble dx)
@@ -783,22 +802,6 @@ static void saturate (guchar *dest, gint width,
 	GimpHSV	hsv;
 	gint	b = absolute(bpc);
 	dest += b;	/* point to green before looping */
-#ifdef DEBUG_TIME
-	width--;
-	rgb.r = get_pixel (dest-b, bpc);
-	rgb.g = get_pixel (dest  , bpc);
-	rgb.b = get_pixel (dest+b, bpc);
-	gimp_rgb_to_hsv (&rgb, &hsv);
-	hsv.s *= s_scale;
-	if (hsv.s > 1.0)
-		hsv.s = 1.0;
-	gimp_hsv_to_rgb (&hsv, &rgb);
-	set_pixel (dest-b, rgb.r, bpc);
-	set_pixel (dest  , rgb.g, bpc);
-	set_pixel (dest+b, rgb.b, bpc);
-	dest += bpp;
-	printf("saturate(), b=%d r=%d=%g g=%d=%g b=%d=%g, h%g s%g v%g, ", b, *(dest-b), rgb.r, *dest, rgb.g, *(dest+b), rgb.b, hsv.h, hsv.s, hsv.v);
-#endif
 	while (width-- > 0) {
 		rgb.r = get_pixel (dest-b, bpc);
 		rgb.g = get_pixel (dest  , bpc);
@@ -992,16 +995,12 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 					x_red_2 = x_red_1 + 1;
 
 				/* Interpolation */
-				dest[(x-x1)*bytes] = bilinear (ptr_red_1[x_red_1*bytes],
-							       ptr_red_1[x_red_2*bytes],
-							       ptr_red_2[x_red_1*bytes],
-							       ptr_red_2[x_red_2*bytes],
-							       d_x_red, d_y_red);
-				dest[(x-x1)*bytes + 2] = bilinear (ptr_blue_1[x_blue_1*bytes+2],
-								   ptr_blue_1[x_blue_2*bytes+2],
-								   ptr_blue_2[x_blue_1*bytes+2],
-								   ptr_blue_2[x_blue_2*bytes+2],
-								   d_x_blue, d_y_blue);
+				bilinear ((dest+((x-x1)*bytes+2*b)), \
+					  (ptr_blue_1+2*b), (ptr_blue_2+2*b), x_blue_1, x_blue_2, \
+					  bytes, bpc, d_x_blue, d_y_blue);
+				bilinear ((dest+((x-x1)*bytes)), \
+					  ptr_red_1, ptr_red_2, x_red_1, x_red_2, \
+					  bytes, bpc, d_x_red, d_y_red);
 			}
 		} else if (params->interpolation == GIMP_INTERPOLATION_CUBIC) {
 			/* Pointer to pixel data rows y-1, y */
