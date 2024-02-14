@@ -106,6 +106,8 @@ static void	cubicX (guchar *dest, gint bpp, gint bpc, gdouble dy, \
 			gdouble ym1, gdouble x, gdouble xp1, gdouble xp2);
 static void	saturate (guchar *dest, gint width,
 			  gint bpp, gint bpc, gdouble s_scale);
+static void centerline (guchar *dest, gint width, gint bpp, gint bpc, \
+			gint x, gint y, gint xc, gint yc);
 static int	scale (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
 static double	scale_d (gint i, gint center, gint size, gdouble scale_val, gdouble shift_val);
 static guchar *load_data (gint fullWidth, gint bpp, guchar *srcPTR,
@@ -813,7 +815,7 @@ static void cubicX (guchar *dest, gint bpp, gint bpc, gdouble dy, \
 	set_pixel (dest, clip_d(d), bpc);
 }
 
-static void saturate (guchar *dest, gint width,
+static void saturate (guchar *dest, gint width, \
 		      gint bpp, gint bpc, gdouble s_scale)
 {
 	GimpRGB	rgb;
@@ -833,6 +835,59 @@ static void saturate (guchar *dest, gint width,
 		set_pixel (dest  , rgb.g, bpc);
 		set_pixel (dest+b, rgb.b, bpc);
 		dest += bpp;
+	}
+}
+
+static void centerline (guchar *dest, gint width, gint bpp, gint bpc, \
+			gint x, gint y, gint xc, gint yc)
+{
+	gint	i, b = absolute(bpc);
+	gdouble	c = 1.0;
+	dest += b;
+	if (y == yc) {
+		i = absolute(xc - x) %16;
+		if (i < 8) c = 0.0;
+		while (width-- > 0) {
+			set_pixel (dest-b, c, bpc);
+			set_pixel (dest  , c, bpc);
+			set_pixel (dest+b, c, bpc);
+			if (i-- < 0) {
+				i = 7;
+				if (c > 0)
+					c = 0.0;
+				else
+					c = 1.0;
+			}
+			dest += bpp;
+		}
+		return;
+	}
+	if (y <= yc)
+		y = yc - y;
+	else
+		y = y - yc;
+	i = absolute(y) % 16;
+	if (i < 8) c = 0.0;
+	xc -= x;
+	if (xc >= 0 && xc < width) {
+		x = xc * bpp;
+		set_pixel (dest+x-b, c, bpc);
+		set_pixel (dest+x  , c, bpc);
+		set_pixel (dest+x+b, c, bpc);
+	}
+	x = xc - y;
+	if (x >= 0 && x < width) {
+		x *= bpp;
+		set_pixel (dest+x-b, c, bpc);
+		set_pixel (dest+x  , c, bpc);
+		set_pixel (dest+x+b, c, bpc);
+	}
+	x = xc + y;
+	if (x >= 0 && x < width) {
+		x *= bpp;
+		set_pixel (dest+x-b, c, bpc);
+		set_pixel (dest+x  , c, bpc);
+		set_pixel (dest+x+b, c, bpc);
 	}
 }
 
@@ -1155,8 +1210,11 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			}
 		}
 
-		if (!show_progress && params->saturation != 0.0) {
-			saturate (dest, x2-x1, bytes, bpc, 1+params->saturation/100);
+		if (!show_progress) {
+			if (params->saturation != 0.0)
+				saturate (dest, x2-x1, bytes, bpc, 1+params->saturation/100);
+
+				centerline (dest, x2-x1, bytes, bpc, x1, y, x_center, y_center);
 		}
 
 		set_data (dstPTR, dest, bytes, orig_width, x1, y, (x2-x1));
