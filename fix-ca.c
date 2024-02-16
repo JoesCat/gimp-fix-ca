@@ -56,6 +56,8 @@
 typedef struct {
 	gdouble  blue;
 	gdouble  red;
+	gdouble  lens_x;
+	gdouble  lens_y;
 	gboolean update_preview;
 	GimpInterpolationType	interpolation;
 	gdouble	 saturation;
@@ -69,6 +71,8 @@ typedef struct {
 static const FixCaParams fix_ca_params_default = {
 	0.0,	/* blue */
 	0.0,	/* red  */
+	-1.0,	/* lens_x */
+	-1.0,	/* lens_y */
 	TRUE,	/* update preview */
 	GIMP_INTERPOLATION_LINEAR, /* do linear interpolation */
 	0.0,	/* saturation */
@@ -83,7 +87,7 @@ static void	query (void);
 static void	run (const gchar *name, gint nparams,
 		     const GimpParam  *param, gint *nreturn_vals,
 		     GimpParam **return_vals);
-static void	fix_ca (gint32 drawable_ID, FixCaParams *params);
+static int	fix_ca (gint32 drawable_ID, FixCaParams *params);
 static void	fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			       gint orig_width, gint orig_height,
 			       gint bytes, gint bpc, FixCaParams *params,
@@ -133,6 +137,8 @@ static void query (void)
 		{ GIMP_PDB_DRAWABLE, "drawable", "Input drawable" },
 		{ GIMP_PDB_FLOAT, "blue", "Blue amount (lateral)" },
 		{ GIMP_PDB_FLOAT, "red", "Red amount (lateral)" },
+		{ GIMP_PDB_FLOAT, "lens_x", "lens center (x ,lateral)" },
+		{ GIMP_PDB_FLOAT, "lens_y", "lens center (y ,lateral)" },
 		{ GIMP_PDB_INT8, "interpolation", "Interpolation 0=None/1=Linear/2=Cubic" },
 		{ GIMP_PDB_FLOAT, "x_blue", "Blue amount (x axis)" },
 		{ GIMP_PDB_FLOAT, "x_red", "Red amount (x axis)" },
@@ -189,6 +195,8 @@ static void run (const gchar *name, gint nparams,
 
 	fix_ca_params.blue = fix_ca_params_default.blue;
 	fix_ca_params.red = fix_ca_params_default.red;
+	fix_ca_params.lens_x = fix_ca_params_default.lens_x;
+	fix_ca_params.lens_y = fix_ca_params_default.lens_y;
 	fix_ca_params.update_preview = fix_ca_params_default.update_preview;
 	fix_ca_params.interpolation = fix_ca_params_default.interpolation;
 	fix_ca_params.saturation = fix_ca_params_default.saturation;
@@ -198,7 +206,7 @@ static void run (const gchar *name, gint nparams,
 	fix_ca_params.y_red = fix_ca_params_default.y_red;
 
 	if (param[0].type != GIMP_PDB_INT32 || strcmp(name, PROCEDURE_NAME) != 0 || \
-	    ((run_mode == GIMP_RUN_NONINTERACTIVE) && (nparams < 5 || nparams > 10))) {
+	    ((run_mode == GIMP_RUN_NONINTERACTIVE) && (nparams < 5 || nparams > 12))) {
 		values[0].data.d_status = GIMP_PDB_CALLING_ERROR;
 		return;
 	}
@@ -207,29 +215,31 @@ static void run (const gchar *name, gint nparams,
 		case GIMP_RUN_NONINTERACTIVE:
 			fix_ca_params.blue = param[3].data.d_float;
 			fix_ca_params.red = param[4].data.d_float;
-			if (nparams < 6)
+			fix_ca_params.lens_x = param[5].data.d_int32;
+			fix_ca_params.lens_y = param[6].data.d_int32;
+			if (nparams < 8)
 				fix_ca_params.interpolation = GIMP_INTERPOLATION_NONE;
-			else if (param[5].data.d_int8 > 2)
+			else if (param[7].data.d_int8 > 2)
 				status = GIMP_PDB_CALLING_ERROR;
 			else
-				fix_ca_params.interpolation = param[5].data.d_int8;
+				fix_ca_params.interpolation = param[7].data.d_int8;
 
-			if (nparams < 7)
+			if (nparams < 9)
 				fix_ca_params.x_blue = 0;
 			else
-				fix_ca_params.x_blue = param[6].data.d_float;
-			if (nparams < 8)
+				fix_ca_params.x_blue = param[8].data.d_float;
+			if (nparams < 10)
 				fix_ca_params.x_red = 0;
 			else
-				fix_ca_params.x_red = param[7].data.d_float;
-			if (nparams < 9)
+				fix_ca_params.x_red = param[9].data.d_float;
+			if (nparams < 11)
 				fix_ca_params.y_blue = 0;
 			else
-				fix_ca_params.y_blue = param[8].data.d_float;
-			if (nparams < 10)
+				fix_ca_params.y_blue = param[10].data.d_float;
+			if (nparams < 12)
 				fix_ca_params.y_red = 0;
 			else
-				fix_ca_params.y_red = param[9].data.d_float;
+				fix_ca_params.y_red = param[11].data.d_float;
 			break;
 
 		case GIMP_RUN_INTERACTIVE:
@@ -248,20 +258,22 @@ static void run (const gchar *name, gint nparams,
 	}
 
 	if (status == GIMP_PDB_SUCCESS) {
-		fix_ca (drawable->drawable_id, &fix_ca_params);
+		if (fix_ca (drawable->drawable_id, &fix_ca_params)) {
+			status = GIMP_PDB_CALLING_ERROR;
+		} else {
+			gimp_displays_flush ();
 
-		gimp_displays_flush ();
+			if (run_mode == GIMP_RUN_INTERACTIVE)
+				gimp_set_data (DATA_KEY_VALS, &fix_ca_params, sizeof (fix_ca_params));
 
-		if (run_mode == GIMP_RUN_INTERACTIVE)
-			gimp_set_data (DATA_KEY_VALS, &fix_ca_params, sizeof (fix_ca_params));
-
-		gimp_drawable_detach (drawable);
+			gimp_drawable_detach (drawable);
+		}
 	}
 
 	values[0].data.d_status = status;
 }
 
-static void fix_ca (gint32 drawable_ID, FixCaParams *params)
+static int fix_ca (gint32 drawable_ID, FixCaParams *params)
 {
 	GeglBuffer *srcBuf, *destBuf;
 	guchar     *srcImg, *destImg;
@@ -270,7 +282,7 @@ static void fix_ca (gint32 drawable_ID, FixCaParams *params)
 
 	/* get dimensions */
 	if (!(gimp_drawable_mask_intersect(drawable_ID, &x, &y, &width, &height)))
-		return;
+		return -1;
 
 #ifdef DEBUG_TIME
 	double	sec;
@@ -284,8 +296,10 @@ static void fix_ca (gint32 drawable_ID, FixCaParams *params)
 	format = gimp_drawable_get_format (drawable_ID);
 	bppImg = babl_format_get_bytes_per_pixel (format);
 	bpcImg = color_size (format);
-	if (bpcImg <= -99)
-		return;
+	if (bpcImg <= -99) {
+		g_message( _("Invalid color type!") );
+		return -1;
+	}
 
 	//gegl_init (NULL, NULL);
 
@@ -324,6 +338,7 @@ static void fix_ca (gint32 drawable_ID, FixCaParams *params)
 	sec = tv2.tv_sec - tv1.tv_sec + (tv2.tv_usec - tv1.tv_usec)/1000000.0;
 	printf("End fix-ca(), Elapsed time: %.2f\n", sec);
 #endif
+	return 0;
 }
 
 static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
@@ -335,7 +350,8 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 	GtkWidget *table;
 	GtkWidget *frame;
 	GtkObject *adj;
-	gboolean   run;
+	gboolean  run;
+	gint      xImg, yImg;
 
 	gimp_ui_init ("fix_ca", TRUE);
 
@@ -354,6 +370,11 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 	gtk_widget_show (main_vbox);
 
 	preview = gimp_drawable_preview_new_from_drawable_id (drawable_ID);
+	xImg = gimp_drawable_width(drawable_ID);
+	yImg = gimp_drawable_height(drawable_ID);
+	if (params->lens_x <= 0 || params->lens_x >= xImg) params->lens_x = round (xImg/2);
+	if (params->lens_y <= 0 || params->lens_y >= yImg) params->lens_y = round (yImg/2);
+
 	gtk_box_pack_start (GTK_BOX (main_vbox), preview, TRUE, TRUE, 0);
 	gtk_widget_show (preview);
 
@@ -401,7 +422,7 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 	gtk_box_pack_start (GTK_BOX (main_vbox), frame, FALSE, FALSE, 0);
 	gtk_widget_show (frame);
 
-	table = gtk_table_new (2, 2, FALSE);
+	table = gtk_table_new (2, 4, FALSE);
 	gtk_table_set_col_spacings (GTK_TABLE (table), 6);
 	gtk_table_set_row_spacings (GTK_TABLE (table), 6);
 	gtk_container_add (GTK_CONTAINER (frame), table);
@@ -432,6 +453,33 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 	g_signal_connect_swapped (adj, "value_changed",
 			  G_CALLBACK (gimp_preview_invalidate),
 			  preview);
+
+	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 2,
+				    _("Lens_X:"), SCALE_WIDTH, ENTRY_WIDTH,
+				    params->lens_x, 0, xImg-1, 10, 100, 0,
+				    FALSE, 0, xImg-1,
+				    NULL, NULL);
+
+	g_signal_connect (adj, "value_changed",
+			  G_CALLBACK (gimp_double_adjustment_update),
+			  &(params->lens_x));
+	g_signal_connect_swapped (adj, "value_changed",
+			  G_CALLBACK (gimp_preview_invalidate),
+			  preview);
+
+	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 3,
+				    _("Lens_Y:"), SCALE_WIDTH, ENTRY_WIDTH,
+				    params->lens_y, 0, yImg-1, 10, 100, 0,
+				    FALSE, 0, yImg-1,
+				    NULL, NULL);
+
+	g_signal_connect (adj, "value_changed",
+			  G_CALLBACK (gimp_double_adjustment_update),
+			  &(params->lens_y));
+	g_signal_connect_swapped (adj, "value_changed",
+			  G_CALLBACK (gimp_preview_invalidate),
+			  preview);
+
 
 	frame = gimp_frame_new ("Directional, X axis");
 	gtk_box_pack_start (GTK_BOX (main_vbox), frame, FALSE, FALSE, 0);
@@ -585,8 +633,8 @@ static int color_size (const Babl *format)
 		return -8; /* IEEE 754 double precision */
 	if (strstr(str, "float") != NULL)
 		return -4; /* IEEE 754 single precision */
-	if (strstr(str, "half") != NULL)
-		return -2; /* IEEE 754 half precision */
+	//if (strstr(str, "half") != NULL)
+	//	return -2; /* IEEE 754 half precision */
 	if (strstr(str, "u15") != NULL)
 		return -99; /* TODO for another day */
 	if (strstr(str, " u") == NULL)
@@ -926,15 +974,19 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 	}
 	dest = g_new (guchar, (x2-x1) * bytes);
 
-	x_center = orig_width / 2;
-	y_center = orig_height / 2;
-	if (orig_width > orig_height)
-		max_dim = orig_width;
-	else
-		max_dim = orig_height;
+	x_center = params->lens_x;
+	y_center = params->lens_y;
 	/* Scale to get source */
-	scale_blue = max_dim / (max_dim + 2 * params->blue);
-	scale_red = max_dim / (max_dim + 2 * params->red);
+	if (x_center >= y_center)
+		max_dim = x_center;
+	else
+		max_dim = y_center;
+	if (orig_width - x_center > max_dim)
+		max_dim = orig_width - x_center;
+	if (orig_height - y_center > max_dim)
+		max_dim = orig_height - y_center;
+	scale_blue = max_dim / (max_dim + params->blue);
+	scale_red = max_dim / (max_dim + params->red);
 
 	/* Optimize by loading only parts of a row */
 	if (scale_blue > scale_red)
@@ -976,7 +1028,8 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 	band_adj = band_1 * bytes;
 	b = absolute (bpc);
 #ifdef DEBUG_TIME
-	printf("fix_ca_region(), b=%d, %d, %d\n", bpc, b, bytes);
+	printf("fix_ca_region(), xc=%d of %d yc=%d of %d b=%d, %d, %d\n", \
+		x_center, orig_width, y_center, orig_height, bpc, b, bytes);
 #endif
 
 	for (y = y1; y < y2; ++y) {
