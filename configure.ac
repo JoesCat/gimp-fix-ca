@@ -95,6 +95,11 @@ AX_CHECK_COMPILE_FLAG([-Wcast-qual],[WCFLAGS="$WCFLAGS -Wcast-qual"])
 AX_CHECK_COMPILE_FLAG([-Wcast-align],[WCFLAGS="$WCFLAGS -Wcast-align"])
 AX_CHECK_COMPILE_FLAG([-Wpadded],[WCFLAGS="$WCFLAGS -Wpadded"])
 AX_CHECK_COMPILE_FLAG([-Woverlength-strings],[WCFLAGS="$WCFLAGS -Woverlength-strings"])
+# ARM likely has this, x86 not likely for "half or "_Float16"
+AX_CHECK_COMPILE_FLAG([-mfp16-format],[WCFLAGS="$WCFLAGS -mfp16-format"])
+# Use the following two combined for clang (if working with "half" or "_Float16"
+AX_CHECK_COMPILE_FLAG([-fnative-half-type],[WCFLAGS="$WCFLAGS -fnative-half-type"])
+AX_CHECK_COMPILE_FLAG([-fallow-half-arguments-and-returns],[WCFLAGS="$WCFLAGS -fallow-half-arguments-and-returns"])
 AC_LANG_POP
 # Skip if replacing with FCA_LIB instead.
 WLSLIB=""

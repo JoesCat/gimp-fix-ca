@@ -2,17 +2,153 @@
 
 ## Overview
 
-Fix-CA is a [GIMP](http://www.gimp.org/) plug-in to correct chromatic
-aberration (CA). For a general explanation about chromatic aberration,
-you can find information from
+Fix-CA is a [GIMP](http://www.gimp.org/) plug-in to correct Chromatic Aberration
+(CA). For a general explanation about Chromatic Aberration, you can find
+information from
 [Wikipedia](http://en.wikipedia.org/wiki/Chromatic_aberration).
-Fix-CA is able to fix lateral CA caused by lens and colored fringing
-caused by light travel through dense material such as glass and water
-(which is called directional CA in the program).
+Fix-CA is able to fix Lateral CA colored fringing caused by light travelling
+through lenses, and Directional CA caused by light travelling through dense
+material such as glass and water.
 
-Current version of Fix-CA is 3.0.4.
 This plug-in was written by Kriang Lerdsuwanakij lerdsuwa@users.sourceforge.net
 and is distributed under [GNU General Public License Version 3](COPYING) (GPLv3).
+Several patches and improvements were later added in 2023,2024 by Jose Da Silva.
+
+
+## Using Fix-CA
+
+Fix-CA plug-in can be accessed via the menu 'Filters->Colors->Chromatic Aberration'
+There are two different types of Chromatic Aberration that can be corrected by Fix-CA: 
+Lateral and Directional.
+
+
+### Lateral CA
+
+Lateral Chromatic Aberration appears due to
+[light passing through a lens](https://www.google.com/search?q=prism+light).
+You may notice this effect with older analog cameras, or photographs, while newer
+quality cameras may use methods to help reduce or cancel this effect, and digital
+all-in-one cameras and smartphones can easily correct using software formulas
+(similar to Fix-CA for their own lenses).
+
+For this type of CA, the center of the image seen by the lens has no CA and the CA
+gradually increases toward the edges.  Ideally, the original camera image, rather
+than a cropped version, should be used to eliminate this type of CA.
+If you are using a cropped image, you need to know approximately where the lens
+center is located and then correct for this based off of the lens center.
+
+Below is the image used to demonstrate Fix-CA plug-in capability
+[full sized original here](img-fix-ca/full-Wat_Pathum_Wanaram.jpg) available under the
+[GNU Free Documentation License Version 1.2 (GFDL) license](http://www.gnu.org/licenses/fdl.html).
+
+![](img-fix-ca/ex-orig.jpg)
+
+This is a photo of Wat Pathum Wanaram, a buddhist temple next to Siam Paragon,
+a major shopping mall in Bangkok. The areas of interest are marked with green
+rectangles. Note that the reduced size here is only for display purposes.
+The actual processing is done on the full sized image (with green rectangles
+left "as-is" on a different layer, unaffected by the plug-in).
+
+Below are 200% zoom of the four areas. The chromatic aberration (CA) is
+visible on the images as red and blue lines around bright area.
+
+![](img-fix-ca/ex-zoom.jpg)
+
+Normally it is not noticeable in the final image unless you are looking for this,
+but can be quite visible when the image is cropped to a smaller area and then
+expanded.
+
+Invoking Fix-CA plug-in using the menu 'Filters->Colors->Chromatic Aberration'
+With the settings shown below image (for version 2.1.0), much of the CA can be
+eliminated (for version 3.0.0 blue and red settings are moved into group 'Lateral').
+
+![](img-fix-ca/fix-ca-dialog.png)
+
+In the dialog box, setting red to -1.5 will shift the red channel inward to
+the maximum of 1.5 pixels. Here the positive number means moving outward,
+while the negative number means inward. Since the orientation of this photo
+is portrait, the red channel of top and bottom border will moved by 1.5 pixels.
+Pixels at the inner part the red channel will be moved less while the pixels
+at the center of image will not be moved at all. (For a landscape image, the
+left and right border will be moved by 1.5 pixels instead).
+
+The interpolation parameter controls how the plug-in deals with fractional
+pixels, for example, if the plug-in decides to move an image pixel by 0.8
+pixel, 'Linear' and 'Cubic' settings will try to get a value by averaging
+the surrounding pixels while 'None' will pick the nearest pixel (for this
+example by moving 1 full pixel).
+
+The 'Preview saturation' setting changes the saturation for the preview image.
+This may help you spot CA problems. The setting does not have any effect on the
+final image produced by this filter.
+
+Below is the 200% zoom for the resulting change using the above corrections.
+
+![](img-fix-ca/ex-fixed.jpg)
+
+In this example above we need to trade off between bottom right area (which
+suffers from less CA) and the left area (the most CA).
+If the image used is cropped, you can concentrate on fixing in the part of the
+image that is actually used and ignore the rest.  Just remember, a better result
+can be expected if you correct CA before cropping.
+
+For the majority of your pictures and images, you can assume the lens center is
+also at the image center (unless you're working with a cropped image). If you want
+to fix the [full sized original here](img-fix-ca/full-Wat_Pathum_Wanaram.jpg)
+image further, then Fix-CA (version 4.0) now adds the ability to also move the
+lens centerpoint (default is center of image).
+Below you will see added variables LensX, LensY, allowing you to move the lens centerpoint to another location on the image.
+
+![](img-fix-ca/fix-ca-center.jpg)
+
+Below is an example image using a poor man's zoom attached to a smartphone.
+Even though a smartphone can correct an image for it's own lens, the poor man's
+zoom attachment adds Lateral CA as well as having the lens center off to one side.
+You may notice the pixel corrections seem like large values like 6.0, but this
+applies to the (black) corners, and reduces down to about 3.0 around the edges of
+where the lens image begins, eventually 0 pixel shift at lens center (658,1280).
+
+![](img-fix-ca/ex-bran.jpg)
+![](img-fix-ca/poorman-zoom.jpg)
+
+Below is a Preview (off) of the leaves (showing blue). This can be corrected
+using the Lateral CA settings shown above (can be seen with Preview on).
+
+![](img-fix-ca/ex-bran-fix.jpg)
+
+The [full sized original is here](img-fix-ca/full-branches.jpg).
+
+
+### Directional CA
+
+In Directional Chromatic Aberration, the amount of CA is assumed to be the
+same throughout the image.  This happen, for example, when photographing
+fish in an aquarium.  Light travels through dense water and glass and bends
+differently depending on the color and angle from the glass.  This CA correction
+mode was introduced in Fix-CA version 3.0.0. You can specify the amount of shift
+for blue and red along both X and Y axis.
+
+This example is a complete photo of a sleeping sea turtle.
+
+![](img-fix-ca/Sea_turtle-orig.jpg)
+
+The image below is the turtle head at a zoom of 50%.
+CA is severe and noticeable at this zoom level.
+
+![](img-fix-ca/Sea_turtle-zoom.jpg)
+![](img-fix-ca/Sea_turtle-dialog_before.png)
+
+The amount of CA is roughly the same throughout the image. Starting from the
+original, shown above.
+
+By adjusting Directional X-axis CA amount and Y-axis amount to shift color
+component around, the result is quite good with the settings shown below.
+
+ ![](img-fix-ca/Sea_turtle-dialog.png)
+
+The picture below shows (50% zoom) corrected image of the interested region.
+
+![](img-fix-ca/Sea_turtle-fixed.jpg)
 
 ## Download and building Fix-CA
 
@@ -42,7 +178,7 @@ from the GIMP menu.
 
 ## Installation method
 
-Developers and Distro install will be more interested in this install method.
+Developers and Distro installers will be more interested in this install method.
 
 Installing from Git master requires 2 preparatory steps:
 
@@ -83,91 +219,6 @@ Installing on Windows 64-bit
 make
 make install
 ```
-
-
-## Using Fix-CA
-
-Fix-CA plug-in can be accessed via the menu 'Filters->Colors->Chromatic Aberration'
-There are two different modes of chromatic aberration that can be corrected by Fix-CA: 
-lateral and directional.
-
-
-### Lateral CA
-
-Lateral chromatic aberration appears due to lens imperfection.
-For this type of CA, the center of the image has no CA and the CA
-gradually increases toward the borders.  The original camera image, rather than a
-cropped version, should be used to eliminate this type of CA.
-
-Below left is the image used to demonstrate Fix-CA plug-in capability
-[full sized original here](img-fix-ca/full-Wat_Pathum_Wanaram.jpg) available under the
-[GNU Free Documentation License Version 1.2 (GFDL) license](http://www.gnu.org/licenses/fdl.html).
-This is a photo of Wat Pathum Wanaram, a buddhist temple next to Siam Paragon,
-a major shopping mall in Bangkok. The areas of interest are marked with green
-rectangles. Note that the reduced size here is only for display purpose.
-The actual processing is done on the full sized image (with green rectangles
-on a different layer, unaffected by the plug-in).
-
-Below right is 200% zoom of the areas. The chromatic aberration (CA) is
-visible on the right images as red and blue lines around bright area.
-![](img-fix-ca/ex-orig.jpg) ![](img-fix-ca/ex-zoom.jpg)
-
-Normally it is not noticable in the final image. But can be quite visible
-when the image is cropped to smaller area and then used (poor man's zoom).
-
-Invoking Fix-CA plug-in via the menu 'Filters->Colors->Chromatic Aberration'
-With the settings shown below in the left image (for version 2.1.0), much
-of CA can be eliminated. For version 3.0.0 blue and red settings depicted are
-moved under the group 'Lateral'. Below right is the 200% zoom for the
-resulting change.
-![](img-fix-ca/fix-ca-dialog.png) ![](img-fix-ca/ex-fixed.jpg)
-
-In the dialog box, setting red to -1.5 will shift the red channel inward to
-the maximum of 1.5 pixels. Here the positive number means moving outward,
-while the negative number means inward. Since the orientation of this photo
-is portrait, the red channel of top and bottom border will moved by 1.5 pixels.
-Pixels at the inner part the red channel will be moved less while the pixels
-at the center of image will not be moved at all. (For a landscape image, the
-left and right border will be moved by 1.5 pixels instead).
-The interpolation parameter controls how the plug-in deals with fractional
-pixels, for example, if the plug-in decides to move an image pixel by 0.8
-pixel, 'Linear' and 'Cubic' settings will try to get a value by averaging
-the surrounding pixels while 'None' will pick the nearest pixel (for this
-example by moving 1 full pixel).
-
-The setting 'Preview saturation' changes the saturation for the preview image.
-This may help spot CA problems. The setting does not have any effect on the
-final image produced by this filter.
-
-In this example we need to trade off between bottom right area (which suffers
-from less CA) and the left area (the most CA).
-When image used is cropped, you can concentrate on fixing in the part of image
-that is actually used and ignore the rest.  A better result can be expected.
-Just remember to correct CA before cropping.
-
-
-### Directional CA
-
-In directional chromatic aberration, the amount of CA is assumed to be the
-same throughout the image.  This can happen, for example, when photographing
-fish in an aquarium.  Light travels through dense water and glass and bends
-differently depending on the color.  This CA correction mode was introduced in
-Fix-CA version 3.0.0. You can specify the amount of shift for blue and red
-along both X and Y axis.
-
-An example is the following photo of a sleeping sea turtle. The left side is
-the complete photo. The right is the turtle head, zoom to 50%.
-CA is severe and noticeable at this zoom level.
-![](img-fix-ca/Sea_turtle-orig.jpg) ![](img-fix-ca/Sea_turtle-zoom.jpg)
-
-The amount of CA is roughly the same throughout the image. Starting from
-the original, as in the left image below. By adjusting X-axis CA amount
-and Y-axis amount to shift color component around, the result is quite
-good with the settings on the right.
-![](img-fix-ca/Sea_turtle-dialog_before.png) ![](img-fix-ca/Sea_turtle-dialog.png)
-
-The picture below shows (50% zoom) corrected image of the interested region.
-![](img-fix-ca/Sea_turtle-fixed.jpg)
 
 ## Version History
 

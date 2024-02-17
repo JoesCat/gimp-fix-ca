@@ -20,13 +20,15 @@ fix_ca_LDADD = ${LIBS} ${GIMP_LIBS} ${WSLIB} ${FCA_LIB}
 metainfodir = ${datarootdir}/metainfo
 metainfo_DATA = ${srcdir}/org.gimp.extension.fix-ca.metainfo.xml
 
-EXTRA_DIST = README.md fix-ca-config.h.in rpm/gimp-fix-ca.spec.in \
+EXTRA_DIST = README.md fix-ca-config.h.in rpm/gimp-fix-ca.spec.in		\
 	img-fix-ca/ex-fixed.jpg img-fix-ca/ex-orig.jpg img-fix-ca/ex-zoom.jpg	\
 	img-fix-ca/fix-ca-dialog.png img-fix-ca/full-Wat_Pathum_Wanaram.jpg	\
 	img-fix-ca/plug-in-browser.png img-fix-ca/Sea_turtle-dialog_before.png	\
 	img-fix-ca/Sea_turtle-dialog.png img-fix-ca/Sea_turtle-fixed.jpg	\
 	img-fix-ca/Sea_turtle-orig.jpg img-fix-ca/Sea_turtle-zoom.jpg		\
-	org.gimp.extension.fix-ca.metainfo.xml
+	img-fix-ca/ex-bran.jpg img-fix-ca/ex-bran-fix.jpg			\
+	img-fix-ca/fix-ca-center.jpg img-fix-ca/full-branches.jpg		\
+	img-fix-ca/poorman-zoom.jpg org.gimp.extension.fix-ca.metainfo.xml
 nodist_EXTRA_DATA = .git .github
 DISTCHECK_CONFIGURE_FLAGS = --disable-silent-rules --enable-debugtime
 

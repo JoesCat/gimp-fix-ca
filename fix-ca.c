@@ -137,13 +137,13 @@ static void query (void)
 		{ GIMP_PDB_DRAWABLE, "drawable", "Input drawable" },
 		{ GIMP_PDB_FLOAT, "blue", "Blue amount (lateral)" },
 		{ GIMP_PDB_FLOAT, "red", "Red amount (lateral)" },
-		{ GIMP_PDB_FLOAT, "lens_x", "lens center (x ,lateral)" },
-		{ GIMP_PDB_FLOAT, "lens_y", "lens center (y ,lateral)" },
+		{ GIMP_PDB_FLOAT, "lens_x", "lens center (x, lateral)" },
+		{ GIMP_PDB_FLOAT, "lens_y", "lens center (y, lateral)" },
 		{ GIMP_PDB_INT8, "interpolation", "Interpolation 0=None/1=Linear/2=Cubic" },
-		{ GIMP_PDB_FLOAT, "x_blue", "Blue amount (x axis)" },
-		{ GIMP_PDB_FLOAT, "x_red", "Red amount (x axis)" },
-		{ GIMP_PDB_FLOAT, "y_blue", "Blue amount (y axis)" },
-		{ GIMP_PDB_FLOAT, "y_red", "Red amount (y axis)" }
+		{ GIMP_PDB_FLOAT, "x_blue", "Blue amount (x axis, directional)" },
+		{ GIMP_PDB_FLOAT, "x_red", "Red amount (x axis, directional)" },
+		{ GIMP_PDB_FLOAT, "y_blue", "Blue amount (y axis, directional)" },
+		{ GIMP_PDB_FLOAT, "y_red", "Red amount (y axis, directional)" }
 	};
 
 #define FIX_CA_VERSION "Fix-CA Version " FIX_CA_MAJOR_VERSION "." FIX_CA_MINOR_VERSION
@@ -153,8 +153,8 @@ static void query (void)
 				"lens.  It works by shifting red and blue "
 				"components of image pixels in the specified "
 				"amounts.",
-				"https://github.com/JoesCat/gimp-fix-ca/",
 				"Kriang Lerdsuwanakij",
+				"Kriang Lerdsuwanakij 2006, 2007",
 				"2024",
 				N_("Chromatic Aberration..."),
 				"RGB*",
@@ -1267,7 +1267,7 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			if (params->saturation != 0.0)
 				saturate (dest, x2-x1, bytes, bpc, 1+params->saturation/100);
 
-				centerline (dest, x2-x1, bytes, bpc, x1, y, x_center, y_center);
+			centerline (dest, x2-x1, bytes, bpc, x1, y, x_center, y_center);
 		}
 
 		set_data (dstPTR, dest, bytes, orig_width, x1, y, (x2-x1));
@@ -1293,18 +1293,19 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 
 static void fix_ca_help (const gchar *help_id, gpointer help_data)
 {
-	gimp_message ("The image to modify is in RGB format.  The green pixels "
+	gimp_message ("The image to modify is in RGB format.  Color precision "
+		      "can be float, double, 8, 16, 32, 64.  The green pixels "
 		      "are kept stationary, and you can shift the red and blue "
 		      "colors within a range of {-10..+10} pixels.\n\n"
-		      "Lateral Chromatic Aberration is due to camera lense(s) "
-		      "with no aberration at the lense center, and increasing "
+		      "Lateral Chromatic Aberration is due to camera lens(es) "
+		      "with no aberration at the lens center, and increasing "
 		      "gradually toward the edges of the image.\n\n"
 		      "Directional X and Y axis aberrations are a flat amount "
 		      "of aberration due to image seen through something like "
 		      "glass, water, or another medium of different density.  "
 		      "You can shift pixels up/left {-10..+10} down/right.\n\n"
 		      "Lateral aberration correction is applied first, since "
-		      "the lense(s) are closest to the film or sensor, and "
-		      "directional corrections applied last since this is the "
-		      "furthest away from the camera.");
+		      "the lens(es) are closest to the film or image sensor, "
+		      "and directional corrections applied last since this is "
+		      "the furthest away from the camera.");
 }
