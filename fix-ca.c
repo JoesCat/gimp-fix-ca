@@ -36,9 +36,19 @@
 # include <stdio.h>
 #endif
 
+#ifdef HAVE_GETTEXT
+#include <libintl.h>
+#define _(String) gettext (String)
+#ifdef gettext_noop
+#    define N_(String) gettext_noop (String)
+#else
+#    define N_(String) (String)
+#endif
+#else
 /* No i18n for now */
 #define _(x)	x
 #define N_(x)	x
+#endif
 
 #define PROCEDURE_NAME	"Fix-CA"
 #define DATA_KEY_VALS	"fix_ca"
@@ -146,17 +156,26 @@ static void query (void)
 		{ GIMP_PDB_FLOAT, "y_red", "Red amount (y axis, directional)" }
 	};
 
+#ifdef HAVE_GETTEXT
+	/*  Initialize i18n support  */
+	bindtextdomain( GETTEXT_PACKAGE, gimp_locale_directory() );
+#ifdef HAVE_BIND_TEXTDOMAIN_CODESET
+	bind_textdomain_codeset( GETTEXT_PACKAGE, "UTF-8" );
+#endif
+	textdomain( GETTEXT_PACKAGE );
+#endif
+
 #define FIX_CA_VERSION "Fix-CA Version " FIX_CA_MAJOR_VERSION "." FIX_CA_MINOR_VERSION
 	gimp_install_procedure (PROCEDURE_NAME,
 				FIX_CA_VERSION,
-				"Fix chromatic aberration caused by imperfect "
-				"lens.  It works by shifting red and blue "
-				"components of image pixels in the specified "
-				"amounts.",
+				_("Fix chromatic aberration caused by imperfect "
+				  "lens.  It works by shifting red and blue "
+				  "components of image pixels in the specified "
+				  "amounts."),
 				"Kriang Lerdsuwanakij",
 				"Kriang Lerdsuwanakij 2006, 2007",
 				"2024",
-				N_("Chromatic Aberration..."),
+				_("Chromatic Aberration"),
 				"RGB*",
 				GIMP_PLUGIN,
 				G_N_ELEMENTS (args), 0,
@@ -168,7 +187,7 @@ static void query (void)
 		gimp_plugin_menu_register (PROCEDURE_NAME, "<Image>/Colors");
 	else
 #endif
-		gimp_plugin_menu_register (PROCEDURE_NAME, "<Image>/Filters/Colors");
+		gimp_plugin_menu_register (PROCEDURE_NAME, _("<Image>/Filters/Colors"));
 }
 
 static void run (const gchar *name, gint nparams,
@@ -211,6 +230,14 @@ static void run (const gchar *name, gint nparams,
 		return;
 	}
 
+#ifdef HAVE_GETTEXT
+	/*  Initialize i18n support  */
+	bindtextdomain( GETTEXT_PACKAGE, gimp_locale_directory() );
+#ifdef HAVE_BIND_TEXTDOMAIN_CODESET
+	bind_textdomain_codeset( GETTEXT_PACKAGE, "UTF-8" );
+#endif
+	textdomain( GETTEXT_PACKAGE );
+#endif
 	switch (run_mode) {
 		case GIMP_RUN_NONINTERACTIVE:
 			fix_ca_params.blue = param[3].data.d_float;
@@ -418,7 +445,7 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 				  preview);
 
 
-	frame = gimp_frame_new ("Lateral");
+	frame = gimp_frame_new (_("Lateral"));
 	gtk_box_pack_start (GTK_BOX (main_vbox), frame, FALSE, FALSE, 0);
 	gtk_widget_show (frame);
 
@@ -481,7 +508,7 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 			  preview);
 
 
-	frame = gimp_frame_new ("Directional, X axis");
+	frame = gimp_frame_new (_("Directional, X axis"));
 	gtk_box_pack_start (GTK_BOX (main_vbox), frame, FALSE, FALSE, 0);
 	gtk_widget_show (frame);
 
@@ -517,7 +544,7 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 			  G_CALLBACK (gimp_preview_invalidate),
 			  preview);
 
-	frame = gimp_frame_new ("Directional, Y axis");
+	frame = gimp_frame_new (_("Directional, Y axis"));
 	gtk_box_pack_start (GTK_BOX (main_vbox), frame, FALSE, FALSE, 0);
 	gtk_widget_show (frame);
 
@@ -1293,19 +1320,19 @@ static void fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 
 static void fix_ca_help (const gchar *help_id, gpointer help_data)
 {
-	gimp_message ("The image to modify is in RGB format.  Color precision "
-		      "can be float, double, 8, 16, 32, 64.  The green pixels "
-		      "are kept stationary, and you can shift the red and blue "
-		      "colors within a range of {-10..+10} pixels.\n\n"
-		      "Lateral Chromatic Aberration is due to camera lens(es) "
-		      "with no aberration at the lens center, and increasing "
-		      "gradually toward the edges of the image.\n\n"
-		      "Directional X and Y axis aberrations are a flat amount "
-		      "of aberration due to image seen through something like "
-		      "glass, water, or another medium of different density.  "
-		      "You can shift pixels up/left {-10..+10} down/right.\n\n"
-		      "Lateral aberration correction is applied first, since "
-		      "the lens(es) are closest to the film or image sensor, "
-		      "and directional corrections applied last since this is "
-		      "the furthest away from the camera.");
+	gimp_message (_("The image to modify is in RGB format.  Color precision "
+			"can be float, double, 8, 16, 32, 64.  The green pixels "
+			"are kept stationary, and you can shift the red and blue "
+			"colors within a range of {-10..+10} pixels.\n\n"
+			"Lateral Chromatic Aberration is due to camera lens(es) "
+			"with no aberration at the lens center, and increasing "
+			"gradually toward the edges of the image.\n\n"
+			"Directional X and Y axis aberrations are a flat amount "
+			"of aberration due to image seen through something like "
+			"glass, water, or another medium of different density.  "
+			"You can shift pixels up/left {-10..+10} down/right.\n\n"
+			"Lateral aberration correction is applied first, since "
+			"the lens(es) are closest to the film or image sensor, "
+			"and directional corrections applied last since this is "
+			"the furthest away from the camera."));
 }

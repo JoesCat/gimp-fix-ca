@@ -19,14 +19,16 @@ AC_PREREQ([2.68])
 #   fix_ca_major_version += 1;
 #   fix_ca_minor_version = 0;
 #
+m4_define([fix_ca_name], [gimp-fix-ca])
 m4_define([fix_ca_major_version], [3.0])
 m4_define([fix_ca_minor_version], [4])
 m4_define([fix_ca_version],[fix_ca_major_version.fix_ca_minor_version])
 m4_define([fix_ca_package_name], [gimp-fix-ca])
-
+m4_define([fix_ca_package_home], [https://github.com/JoesCat/gimp-fix-ca])
+m4_define([fix_ca_package_email], [https://github.com/JoesCat/gimp-fix-ca/issues])
 #--------------------------------------------------------------------------
-AC_INIT([fix-ca],[fix_ca_version],[https://github.com/JoesCat/gimp-fix-ca/issues],
-	[fix_ca_package_name],[https://github.com/JoesCat/gimp-fix-ca])
+AC_INIT([fix_ca_name],[fix_ca_version],[fix_ca_package_email],
+	[fix_ca_package_name],[fix_ca_package_home])
 #--------------------------------------------------------------------------
 AC_CONFIG_SRCDIR([fix-ca.c])
 AC_CONFIG_MACRO_DIR([m4])
@@ -51,6 +53,10 @@ AC_PROG_LN_S
 AC_PROG_MKDIR_P
 AC_PATH_PROG([STRIP],[strip],[:])
 AC_PATH_PROG([GIMPTOOL],[gimptool-2.0],[:])
+AC_PATH_PROG([MSGFMT],[msgfmt],[:])
+AC_PATH_PROG([MSGINIT],[msginit],[:])
+AC_PATH_PROG([MSGMERGE],[msgmerge],[:])
+AC_PATH_PROG([XGETTEXT],[xgettext],[:])
 AM_CONFIG_HEADER(fix-ca-config.h)
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
@@ -119,6 +125,32 @@ if test x"${have_libm}" != xyes; then
     AC_MSG_FAILURE([ERROR: Please install the Math library and math.h],[1])
 fi
 
+# Avoid being locked to a particular gettext verion, use what's available.
+have_gettext=no
+AC_CHECK_HEADERS([intl.h],[have_gettext=yes])
+AC_CHECK_FUNC([gettext],[have_gettext=yes],[have_gettext=no])
+AC_CHECK_FUNC([bind_textdomain_codeset],,[have_gettext=no])
+AC_CHECK_FUNC([textdomain],,[have_gettext=no])
+if test x"${have_gettext}" = xno; then
+	AC_SEARCH_LIBS([intl],[have_gettext=yes],[
+	AC_MSG_ERROR([ERROR: gettext() required! Please install libintl or GETTEXT Packages.])])
+fi
+GETTEXT_PACKAGE=gimp20-fix-ca
+AC_SUBST(GETTEXT_PACKAGE)
+AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE, "$GETTEXT_PACKAGE", [The gettext translation domain.])
+if test x"${have_gettext}" = xyes; then
+  AC_DEFINE([HAVE_GETTEXT],1,[Enable use of local languages])
+fi
+
+dnl need to hardcode locale
+LOCALEDIR='/usr/share/locale'
+AC_SUBST(LOCALEDIR)
+DATADIR='${datadir}/${fix_ca_name}'
+AC_SUBST(DATADIR)
+
+ACLOCAL="$ACLOCAL $ACLOCAL_FLAGS"
+AC_SUBST([ACLOCAL],["${ACLOCAL}"])
+
 # Check for libgimp/gimp.h include file and libgimp library. LGPL
 GIMP_CFLAGS=
 GIMP_LIBS=
@@ -136,6 +168,9 @@ AC_SUBST(GIMP_DATADIR)
 
 AM_CONDITIONAL([HAVEGIMPTOOL],[test "${GIMPTOOL}"x != x])
 
+CPPFLAGS="${CPPFLAGS} AS_ESCAPE([-I${top_builddir}]) AS_ESCAPE([-I${top_srcdir}])"
+AC_SUBST([CPPFLAGS],["${CPPFLAGS}"])
+
 #--------------------------------------------------------------------------
 # Enable debug_time mode
 AC_ARG_ENABLE([debugtime],
@@ -148,8 +183,8 @@ fi
 
 #--------------------------------------------------------------------------
 # Pass variables to fix-ca-config.h
-AC_DEFINE([FIX_CA_MAJOR_VERSION],["fix_ca_major_version"],[gimp-fix-ca-plugin major version])
-AC_DEFINE([FIX_CA_MINOR_VERSION],["fix_ca_minor_version"],[gimp-fix-ca-plugin minor version])
+AC_DEFINE([FIX_CA_MAJOR_VERSION],["fix_ca_major_version"],[gimp-fix-ca major version])
+AC_DEFINE([FIX_CA_MINOR_VERSION],["fix_ca_minor_version"],[gimp-fix-ca minor version])
 
 #--------------------------------------------------------------------------
 # Pass variables to MAKEFILE.AM
@@ -162,19 +197,27 @@ AC_SUBST([FIX_CA_MAJOR_VERSION],[fix_ca_major_version])
 AC_SUBST([FIX_CA_MINOR_VERSION],[fix_ca_minor_version])
 AC_SUBST([FIX_CA_VERSION],[fix_ca_version])
 AC_SUBST([FIX_CA_PACKAGE_NAME],[fix_ca_package_name])
+AC_SUBST([FIX_CA_EMAIL],[fix_ca_package_email])
 AC_SUBST([HOST],["$host"])
 
 dnl Do this here since automake can't process 'if/else/endif in Makefile.am
-SNIPPET='
-noinst_PROGRAMS =
+SNIPPET1='
 ifeq ($(shell id -u),0)
   bindir = $(GIMP_LIBDIR)/plug-ins/fix-ca
 else
-  noinst_PROGRAMS += fix-ca
+  bindir = $(libdir)/gimp/2.0/plug-ins/fix-ca
 endif
 '
-AC_SUBST([SNIPPET])
-AM_SUBST_NOTMAKE([SNIPPET])
+AC_SUBST([SNIPPET1])
+AM_SUBST_NOTMAKE([SNIPPET1])
+SNIPPET2='
+gimplocaledir = $(localedir)
+ifeq ($(shell id -u),0)
+  gimplocaledir = $(LOCALEDIR)
+endif
+'
+AC_SUBST([SNIPPET2])
+AM_SUBST_NOTMAKE([SNIPPET2])
 
 #--------------------------------------------------------------------------
 # Put ifndef wrapper on fix-ca-config.h so we don't call it repeatedly.
@@ -187,6 +230,7 @@ AH_BOTTOM([
 #--------------------------------------------------------------------------
 AC_CONFIG_FILES([
 Makefile
+po/Makefile
 rpm/gimp-fix-ca.spec
 ])
 AC_OUTPUT
@@ -197,6 +241,9 @@ Configuration:
   Source code location	${srcdir}
   Build code location	${builddir}
   docs root dir		${datarootdir}
+  bin plug-in dir	${GIMP_LIBDIR}/plug-ins/fix-ca
+  GIMP locale dir	${LOCALEDIR}
+  Use locale languages	${have_gettext}
   Compiler		${CC}
   CPPFLAGS		${CPPFLAGS}
   Config auto WCFLAGS	${WCFLAGS}
@@ -204,5 +251,6 @@ Configuration:
   Config FCA_LIB	${FCA_LIB}
   GIMP_CFLAGS		${GIMP_CFLAGS}
   GIMP_LIBS		${GIMP_LIBS}
+  CFLAGS		${CFLAGS}
   LIBS			${LIBS}
 ])

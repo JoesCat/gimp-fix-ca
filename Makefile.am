@@ -1,21 +1,23 @@
 # Makefile.am - Top level automakefile for fix-ca
 
+SUBDIRS = . po
+
 # The braces around ACLOCAL_FLAGS below instead of parentheses are intentional!
 # Otherwise autoreconf misparses the line.
 ACLOCAL_AMFLAGS=-I m4 ${ACLOCAL_FLAGS}
-AM_CFLAGS = ${CFLAGS} ${CPPFLAGS} ${GIMP_CFLAGS} $(WCFLAGS) $(FCA_CFLAGS)
+AM_CFLAGS = ${CFLAGS} ${CPPFLAGS} ${GIMP_CFLAGS} ${WCFLAGS} ${FCA_CFLAGS}
 
 AM_CPPFLAGS = -I${builddir} -I${srcdir} @GIMP_CFLAGS@ -I${includedir}
 
 bin_PROGRAMS = fix-ca
 # 'make distcheck' can't write to ${GIMP_LIBDIR}/plug-ins/fix-ca because of
 # directory permissions, therefore don't install fix-ca unless it is root
-@SNIPPET@
+@SNIPPET1@
 
-fix_ca_name   = fix-ca
+fix_ca_name    = fix-ca
 fix_ca_SOURCES = fix-ca.c
 fix_ca.$(OBJEXT): fix-ca-config.h
-fix_ca_LDADD = ${LIBS} ${GIMP_LIBS} ${WSLIB} ${FCA_LIB}
+fix_ca_LDADD   = ${LIBS} ${GIMP_LIBS} ${WSLIB} ${FCA_LIB}
 
 metainfodir = ${datarootdir}/metainfo
 metainfo_DATA = ${srcdir}/org.gimp.extension.fix-ca.metainfo.xml

@@ -6,14 +6,23 @@
 /* Define if debugging time using printf. */
 #undef DEBUG_TIME
 
-/* gimp-fix-ca-plugin major version */
+/* gimp-fix-ca major version */
 #undef FIX_CA_MAJOR_VERSION
 
-/* gimp-fix-ca-plugin minor version */
+/* gimp-fix-ca minor version */
 #undef FIX_CA_MINOR_VERSION
+
+/* The gettext translation domain. */
+#undef GETTEXT_PACKAGE
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
+
+/* Enable use of local languages */
+#undef HAVE_GETTEXT
+
+/* Define to 1 if you have the <intl.h> header file. */
+#undef HAVE_INTL_H
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
