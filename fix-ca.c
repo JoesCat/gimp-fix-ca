@@ -30,7 +30,6 @@
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 
-/*#define DEBUG_TIME*/
 #ifdef DEBUG_TIME
 # include <sys/time.h>
 # include <stdio.h>
@@ -58,7 +57,8 @@
 #define ENTRY_WIDTH	4
 
 /* For row buffer management */
-#define	SOURCE_ROWS	20
+#define SOURCE_ROWS	120
+#define INPUT_MAX	SOURCE_ROWS/4
 #define ROW_INVALID	-100
 #define ITER_INITIAL	-100
 
@@ -242,31 +242,51 @@ static void run (const gchar *name, gint nparams,
 		case GIMP_RUN_NONINTERACTIVE:
 			fix_ca_params.blue = param[3].data.d_float;
 			fix_ca_params.red = param[4].data.d_float;
-			fix_ca_params.lens_x = param[5].data.d_int32;
-			fix_ca_params.lens_y = param[6].data.d_int32;
+			if (nparams < 6)
+				fix_ca_params.lens_x = -1.0;
+			else
+				fix_ca_params.lens_x = param[5].data.d_int32;
+			if (nparams < 7)
+				fix_ca_params.lens_y = -1.0;
+			else
+				fix_ca_params.lens_y = param[6].data.d_int32;
 			if (nparams < 8)
 				fix_ca_params.interpolation = GIMP_INTERPOLATION_NONE;
-			else if (param[7].data.d_int8 > 2)
-				status = GIMP_PDB_CALLING_ERROR;
 			else
 				fix_ca_params.interpolation = param[7].data.d_int8;
-
 			if (nparams < 9)
-				fix_ca_params.x_blue = 0;
+				fix_ca_params.x_blue = 0.0;
 			else
 				fix_ca_params.x_blue = param[8].data.d_float;
 			if (nparams < 10)
-				fix_ca_params.x_red = 0;
+				fix_ca_params.x_red = 0.0;
 			else
 				fix_ca_params.x_red = param[9].data.d_float;
 			if (nparams < 11)
-				fix_ca_params.y_blue = 0;
+				fix_ca_params.y_blue = 0.0;
 			else
 				fix_ca_params.y_blue = param[10].data.d_float;
 			if (nparams < 12)
-				fix_ca_params.y_red = 0;
+				fix_ca_params.y_red = 0.0;
 			else
 				fix_ca_params.y_red = param[11].data.d_float;
+			if (fix_ca_params.blue < -INPUT_MAX || \
+			    fix_ca_params.blue >  INPUT_MAX || \
+			    fix_ca_params.red  < -INPUT_MAX || \
+			    fix_ca_params.red  >  INPUT_MAX || \
+			    fix_ca_params.interpolation < 0 || \
+			    fix_ca_params.interpolation > 2 || \
+			    fix_ca_params.x_blue < -INPUT_MAX || \
+			    fix_ca_params.x_blue >  INPUT_MAX || \
+			    fix_ca_params.x_red  < -INPUT_MAX || \
+			    fix_ca_params.x_red  >  INPUT_MAX || \
+			    fix_ca_params.y_blue < -INPUT_MAX || \
+			    fix_ca_params.y_blue >  INPUT_MAX || \
+			    fix_ca_params.y_red  < -INPUT_MAX || \
+			    fix_ca_params.y_red  >  INPUT_MAX) {
+				g_message( _("Parameter out of range!") );
+				status = GIMP_PDB_CALLING_ERROR;
+			}
 			break;
 
 		case GIMP_RUN_INTERACTIVE:
@@ -457,7 +477,7 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 
 	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 0,
 				    _("_Blue:"), SCALE_WIDTH, ENTRY_WIDTH,
-				    params->blue, -10.0, 10.0, 0.1, 0.5, 1,
+				    params->blue, -INPUT_MAX, INPUT_MAX, 0.1, 0.5, 1,
 				    TRUE, 0, 0,
 				    NULL, NULL);
 
@@ -470,7 +490,7 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 
 	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 1,
 				    _("_Red:"), SCALE_WIDTH, ENTRY_WIDTH,
-				    params->red, -10.0, 10.0, 0.1, 0.5, 1,
+				    params->red, -INPUT_MAX, INPUT_MAX, 0.1, 0.5, 1,
 				    TRUE, 0, 0,
 				    NULL, NULL);
 
@@ -520,7 +540,7 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 
 	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 0,
 				    _("Blue:"), SCALE_WIDTH, ENTRY_WIDTH,
-				    params->x_blue, -10.0, 10.0, 0.1, 0.5, 1,
+				    params->x_blue, -INPUT_MAX, INPUT_MAX, 0.1, 0.5, 1,
 				    TRUE, 0, 0,
 				    NULL, NULL);
 
@@ -533,7 +553,7 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 
 	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 1,
 				    _("Red:"), SCALE_WIDTH, ENTRY_WIDTH,
-				    params->x_red, -10.0, 10.0, 0.1, 0.5, 1,
+				    params->x_red, -INPUT_MAX, INPUT_MAX, 0.1, 0.5, 1,
 				    TRUE, 0, 0,
 				    NULL, NULL);
 
@@ -556,7 +576,7 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 
 	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 0,
 				    _("Blue:"), SCALE_WIDTH, ENTRY_WIDTH,
-				    params->y_blue, -10.0, 10.0, 0.1, 0.5, 1,
+				    params->y_blue, -INPUT_MAX, INPUT_MAX, 0.1, 0.5, 1,
 				    TRUE, 0, 0,
 				    NULL, NULL);
 
@@ -569,7 +589,7 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 
 	adj = gimp_scale_entry_new (GTK_TABLE (table), 0, 1,
 				    _("Red:"), SCALE_WIDTH, ENTRY_WIDTH,
-				    params->y_red, -10.0, 10.0, 0.1, 0.5, 1,
+				    params->y_red, -INPUT_MAX, INPUT_MAX, 0.1, 0.5, 1,
 				    TRUE, 0, 0,
 				    NULL, NULL);
 
