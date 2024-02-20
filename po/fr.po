@@ -9,10 +9,10 @@ msgstr ""
 "Project-Id-Version: gimp-fix-ca\n"
 "Report-Msgid-Bugs-To: https://github.com/JoesCat/gimp-fix-ca/issues\n"
 "POT-Creation-Date: 2024-02-17 17:24-0800\n"
-"PO-Revision-Date: 2024-02-17 17:24-0800\n"
+"PO-Revision-Date: 2024-02-19 21:00-0800\n"
 "Last-Translator: Jose Da Silva <digital@joescat.com>\n"
 "Language-Team: \n"
-"Language: pt\n"
+"Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -22,80 +22,81 @@ msgid ""
 "Fix chromatic aberration caused by imperfect lens.  It works by shifting red "
 "and blue components of image pixels in the specified amounts."
 msgstr ""
-"Corrija a aberração cromática causada por lentes imperfeitas. Funciona "
-"movendo pixels vermelhos e azuis na imagem."
+"Corrige l'aberration chromatique causée par un objectif imparfait. Il "
+"fonctionne en décalant les composants rouges et bleus des pixels de l'image "
+"dans les quantités spécifiées."
 
 #: ../fix-ca.c:166 ../fix-ca.c:372
 msgid "Chromatic Aberration"
-msgstr "Aberração Cromática"
+msgstr "Aberration Chromatique"
 
 #: ../fix-ca.c:178
 msgid "<Image>/Filters/Colors"
-msgstr "<Image>/Filters/Cors"
+msgstr "<Image>/Filters/Couleur"
 
 #: ../fix-ca.c:314
 msgid "Invalid color type!"
-msgstr "Tipo de cor inválido!"
+msgstr "Type de couleur invalide!"
 
 #: ../fix-ca.c:406
 msgid "Preview _saturation:"
-msgstr "Visualizar _saturação:"
+msgstr "Aperçu _saturation:"
 
 #: ../fix-ca.c:418
 msgid "None (Fastest)"
-msgstr "Nenhum (Rápido)"
+msgstr "Aucun (Rapide)"
 
 #: ../fix-ca.c:419
 msgid "Linear"
-msgstr "Linear"
+msgstr "Linéaire"
 
 #: ../fix-ca.c:420
 msgid "Cubic (Best)"
-msgstr "Cúbico (Melhor)"
+msgstr "Cubiques (Meilleur)"
 
 #: ../fix-ca.c:428
 msgid "_Interpolation:"
-msgstr "_Interpolação:"
+msgstr "_Interpolation:"
 
 #: ../fix-ca.c:435
 msgid "Lateral"
-msgstr "Lateral"
+msgstr "Latérale"
 
 #: ../fix-ca.c:446
 msgid "_Blue:"
-msgstr "_Azul:"
+msgstr "_Bleue:"
 
 #: ../fix-ca.c:459
 msgid "_Red:"
-msgstr "_Vermelha:"
+msgstr "_Rouge:"
 
 #: ../fix-ca.c:472
 msgid "Lens_X:"
-msgstr "Lente_X:"
+msgstr "Lentille_X:"
 
 #: ../fix-ca.c:485
 msgid "Lens_Y:"
-msgstr "Lente_Y:"
+msgstr "Lentille_Y:"
 
 #: ../fix-ca.c:498
 msgid "Directional, X axis"
-msgstr "Direcional, eixo X"
+msgstr "Directionnel, axe X"
 
 #: ../fix-ca.c:509 ../fix-ca.c:545
 msgid "Blue:"
-msgstr "Azul:"
+msgstr "Bleue:"
 
 #: ../fix-ca.c:522 ../fix-ca.c:558
 msgid "Red:"
-msgstr "Vermelha:"
+msgstr "Rouge:"
 
 #: ../fix-ca.c:534
 msgid "Directional, Y axis"
-msgstr "Direcional, eixo Y"
+msgstr "Directionnel, axe Y"
 
 #: ../fix-ca.c:981
 msgid "Shifting pixel components..."
-msgstr "Mudando pixels de cor..."
+msgstr "Déplacement des pixels..."
 
 #: ../fix-ca.c:1310
 msgid ""
@@ -114,19 +115,21 @@ msgid ""
 "closest to the film or image sensor, and directional corrections applied "
 "last since this is the furthest away from the camera."
 msgstr ""
-"A imagem a modificar está no formato RGB. A precisão da cor pode ser flutuante, "
-"dupla, 8, 16, 32, 64. Os pixels verdes são mantidos estacionários e você pode "
-"mudar as cores vermelha e azul dentro de um intervalo de {-10..+10} pixels.\n"
+"L'image à modifier est au format RVB. La précision des couleurs peut être "
+"flottante, double, 8, 16, 32, 64. Les pixels verts restent stationnaires et "
+"vous pouvez décaler les couleurs rouge et bleue dans une plage de {-10..+10} " "pixels.\n"
 "\n"
-"A aberração cromática lateral ocorre devido às lentes da câmera sem aberração "
-"no centro da lente e aumentando gradualmente em direção às bordas da imagem.\n"
+"L'aberration chromatique latérale est due aux objectifs de l'appareil photo "
+"sans aberration au centre de l'objectif et augmentant progressivement vers "
+"les bords de l'image.\n"
 "\n"
-"As aberrações direcionais dos eixos X e Y são uma quantidade fixa de "
-"aberração devido à imagem vista através de algo como vidro, água ou outro "
-"meio de densidade diferente. Você pode deslocar pixels para cima/esquerda "
-"{-10..+10} para baixo/direita.\n"
+"Les aberrations directionnelles des axes X et Y sont une quantité plate "
+"d'aberration due à une image vue à travers quelque chose comme le verre, "
+"l'eau ou un autre milieu de densité différente. Vous pouvez déplacer les "
+"pixels vers le haut/gauche {-10..+10} vers le bas/droite.\n"
 "\n"
-"A correção da aberração lateral é aplicada primeiro, pois a lente está mais "
-"próxima do filme ou sensor de imagem, e as correções direcionais são aplicadas "
-"por último, pois está mais distante da câmera."
+"La correction des aberrations latérales est appliquée en premier, puisque "
+"le ou les objectif(s) sont les plus proches du film ou du capteur d'image, "
+"et les corrections directionnelles sont appliquées en dernier puisque "
+"celui-ci est le plus éloigné de l'appareil photo."
 

@@ -6,11 +6,30 @@
   <name>Fix Chromatic Aberration</name>
   <summary>[plug-in to correct Lateral or Directional Chromatic Aberration (CA)]</summary>
   <description>
-    <p>
+    <p xml:lang="C">
     This extension helps the user correct Lateral Chromatic Aberration (CA) due
     to different color wavelengths travelling through a lens, or Directional CA,
     where the amount of CA is assumed to be the same throughout the image due to
     light travelling through dense material such as glass or water.
+    </p>
+    <p xml:lang="es">
+    Esta extensión ayuda a corregir la aberración cromática lateral (CA) debido
+    a diferentes longitudes de onda de color que viajan a través de una lente,
+    o CA direccional, donde se supone que la cantidad de CA es la misma en toda
+    la imagen debido a luz viaja a través de materiales densos como vidrio o agua.
+    </p>
+    <p xml:lang="fr">
+    Cette extension aide à corriger l'aberration chromatique latérale (CA) due
+    à différentes longueurs d'onde de couleur voyageant à travers une lentille,
+    ou Directional CA, où la quantité de CA est supposée être la même dans toute
+    l'image en raison de la lumière voyageant à travers un matériau dense comme
+    le verre ou l’eau.
+    </p>
+    <p xml:lang="pt">
+    Esta extensão ajuda corrigir a Aberração Cromática Lateral (CA) devido
+    para diferentes comprimentos de onda de cores viajando através de uma lente,
+    ou CA direcional, onde a quantidade de CA é considerada a mesma em toda a
+    imagem devido a luz viajando através de materiais densos, como vidro ou água.
     </p>
   </description>
   <url type="homepage">https://github.com/JoesCat/gimp-fix-ca</url>

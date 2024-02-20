@@ -1,10 +1,11 @@
-LANGUAGES = pt
-PO_FILES = pt.po
+LANGUAGES = es fr pt
+PO_FILES = es.po fr.po pt.po
 
+# Information to help translators
 # To create a new pot file, you need to cd into this po directory first:
 #   cd po; del gimp20-fix-ca.pot; make update-pot
 #
-# To update the existing po files you need to cd into po directory and then do:
+# To update existing po files you need to cd into po directory and then do:
 #   cd po; make update-po
 
 @SNIPPET2@
