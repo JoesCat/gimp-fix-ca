@@ -12,7 +12,7 @@ jobs:
       - name: Create configure
         run: |
           sudo apt-get update -y
-          sudo apt-get install autoconf automake libtool gcc libgimp2.0-dev
+          sudo apt-get install autoconf automake libtool gcc libgimp2.99-dev
           autoreconf -i
           automake
       - name: Choose configure
@@ -62,7 +62,7 @@ jobs:
           automake
       - name: run ./configure
         run: ./configure
-      - name: Make gimp-plugin-fix-ca
+      - name: Make gimp-fix-ca
         run: make
   local:
     runs-on: ubuntu-latest
@@ -71,8 +71,8 @@ jobs:
       - name: Create configure
         run: |
           sudo apt-get update -y
-          sudo apt-get install autoconf automake libtool gcc libgimp2.0-dev
+          sudo apt-get install autoconf automake libtool gcc libgimp2.99-dev
       - name: Make local gimp-fix-ca install
-        run: gimptool-2.0 --install fix-ca.c
+        run: gimptool-2.99 --install fix-ca.c
       - name: Uninstall local gimp-fix-ca
-        run: gimptool-2.0 --uninstall-bin fix-ca
+        run: gimptool-2.99 --uninstall-bin fix-ca

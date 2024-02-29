@@ -7,7 +7,7 @@ SUBDIRS = . po
 ACLOCAL_AMFLAGS=-I m4 ${ACLOCAL_FLAGS}
 AM_CFLAGS = ${CFLAGS} ${CPPFLAGS} ${GIMP_CFLAGS} ${GTK_CFLAGS} ${WCFLAGS} ${FCA_CFLAGS}
 
-AM_CPPFLAGS = -I${builddir} -I${srcdir} ${GIMP_CFLAGS} -I${includedir}
+AM_CPPFLAGS = -I${builddir} -I${srcdir} ${GIMP_CFLAGS} ${GTK_CFLAGS} -I${includedir}
 
 bin_PROGRAMS = fix-ca
 # 'make distcheck' can't write to ${GIMP_LIBDIR}/plug-ins/fix-ca because of
@@ -19,9 +19,6 @@ fix_ca_SOURCES = fix-ca.c
 fix_ca.$(OBJEXT): fix-ca-config.h
 fix_ca_LDADD   = ${LIBS} ${GIMP_LIBS} ${GTK_LIBS} ${WSLIB} ${FCA_LIB}
 
-metainfodir = ${datarootdir}/metainfo
-metainfo_DATA = ${srcdir}/org.gimp.extension.fix-ca.metainfo.xml
-
 EXTRA_DIST = README.md fix-ca-config.h.in rpm/gimp-fix-ca.spec.in		\
 	img-fix-ca/ex-fixed.jpg img-fix-ca/ex-orig.jpg img-fix-ca/ex-zoom.jpg	\
 	img-fix-ca/fix-ca-dialog.png img-fix-ca/full-Wat_Pathum_Wanaram.jpg	\
@@ -30,7 +27,7 @@ EXTRA_DIST = README.md fix-ca-config.h.in rpm/gimp-fix-ca.spec.in		\
 	img-fix-ca/Sea_turtle-orig.jpg img-fix-ca/Sea_turtle-zoom.jpg		\
 	img-fix-ca/ex-bran.jpg img-fix-ca/ex-bran-fix.jpg			\
 	img-fix-ca/fix-ca-center.jpg img-fix-ca/full-branches.jpg		\
-	img-fix-ca/poorman-zoom.jpg org.gimp.extension.fix-ca.metainfo.xml
+	img-fix-ca/poorman-zoom.jpg
 nodist_EXTRA_DATA = .git .github
 DISTCHECK_CONFIGURE_FLAGS = --disable-silent-rules --enable-debugtime
 

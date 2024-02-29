@@ -20,8 +20,10 @@ AC_PREREQ([2.68])
 #   fix_ca_minor_version = 0;
 #
 m4_define([fix_ca_name], [gimp-fix-ca])
-m4_define([fix_ca_major_version], [3.0])
-m4_define([fix_ca_minor_version], [4])
+#m4_define([fix_ca_major_version], [3.0])
+#m4_define([fix_ca_minor_version], [4])
+m4_define([fix_ca_major_version], [0])
+m4_define([fix_ca_minor_version], [0])
 m4_define([fix_ca_version],[fix_ca_major_version.fix_ca_minor_version])
 m4_define([fix_ca_package_name], [gimp-fix-ca])
 m4_define([fix_ca_package_home], [https://github.com/JoesCat/gimp-fix-ca])
@@ -52,7 +54,8 @@ AC_PROG_SED
 AC_PROG_LN_S
 AC_PROG_MKDIR_P
 AC_PATH_PROG([STRIP],[strip],[:])
-AC_PATH_PROG([GIMPTOOL],[gimptool-2.0],[:])
+#AC_PATH_PROG([GIMPTOOL],[gimptool-2.0],[:])
+AC_PATH_PROG([GIMPTOOL],[gimptool-3.0],[:])
 AC_PATH_PROG([MSGFMT],[msgfmt],[:])
 AC_PATH_PROG([MSGINIT],[msginit],[:])
 AC_PATH_PROG([MSGMERGE],[msgmerge],[:])
@@ -135,7 +138,8 @@ if test x"${have_gettext}" = xno; then
 	AC_SEARCH_LIBS([intl],[have_gettext=yes],[
 	AC_MSG_ERROR([ERROR: gettext() required! Please install libintl or GETTEXT Packages.])])
 fi
-GETTEXT_PACKAGE=gimp20-fix-ca
+#GETTEXT_PACKAGE=gimp20-fix-ca
+GETTEXT_PACKAGE=gimp30-fix-ca
 AC_SUBST(GETTEXT_PACKAGE)
 AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE, "$GETTEXT_PACKAGE", [The gettext translation domain.])
 if test x"${have_gettext}" = xyes; then
@@ -155,15 +159,21 @@ AC_SUBST([ACLOCAL],["${ACLOCAL}"])
 GIMP_CFLAGS=
 GIMP_LIBS=
 have_libgimp=no
-PKG_CHECK_MODULES([GIMP],[gimp-2.0 >= 2.10.0 gimpui-2.0 >= 2.10.0],[have_libgimp=yes])
+#PKG_CHECK_MODULES([GIMP],[gimp-2.0 >= 2.10.0 gimpui-2.0 >= 2.10.0],[have_libgimp=yes])
+PKG_CHECK_MODULES([GIMP],[gimp-3.0],[have_libgimp=yes])
 if test x"${have_libgimp}" != xyes; then
-    AC_MSG_FAILURE([ERROR: Please install the developer version of libgimp2.],[1])
+    #AC_MSG_FAILURE([ERROR: Please install the developer version of libgimp2.],[1])
+    AC_MSG_FAILURE([ERROR: Please install the developer version of libgimp3.],[1])
 fi
 AC_SUBST(GIMP_CFLAGS)
+#GIMP_LIBS="${GIMP_LIBS} -lgimpui-3.0"
+#GIMP_LIBS="${GIMP_LIBS} -lgimpwidgets-3.0"
 AC_SUBST(GIMP_LIBS)
-GIMP_LIBDIR=`${PKG_CONFIG} --variable=gimplibdir gimp-2.0`
+#GIMP_LIBDIR=`${PKG_CONFIG} --variable=gimplibdir gimp-2.0`
+GIMP_LIBDIR=`${PKG_CONFIG} --variable=gimplibdir gimp-3.0`
 AC_SUBST(GIMP_LIBDIR)
-GIMP_DATADIR=`${PKG_CONFIG} --variable=gimpdatadir gimp-2.0`
+#GIMP_DATADIR=`${PKG_CONFIG} --variable=gimpdatadir gimp-2.0`
+GIMP_DATADIR=`${PKG_CONFIG} --variable=gimpdatadir gimp-3.0`
 AC_SUBST(GIMP_DATADIR)
 
 AM_CONDITIONAL([HAVEGIMPTOOL],[test "${GIMPTOOL}"x != x])
@@ -171,9 +181,11 @@ AM_CONDITIONAL([HAVEGIMPTOOL],[test "${GIMPTOOL}"x != x])
 GTK_CFLAGS=
 GTK_LIBS=
 have_libgtk=no
-PKG_CHECK_MODULES([GTK],[gtk+-2.0],[have_libgtk=yes])
+#PKG_CHECK_MODULES([GTK],[gtk+-2.0],[have_libgtk=yes])
+PKG_CHECK_MODULES([GTK],[gtk+-3.0],[have_libgtk=yes])
 if test x"${have_libgtk}" != xyes; then
-    AC_MSG_FAILURE([ERROR: Please install the developer version of libgtk+2.],[1])
+    #AC_MSG_FAILURE([ERROR: Please install the developer version of libgtk+2.],[1])
+    AC_MSG_FAILURE([ERROR: Please install the developer version of libgtk+3.],[1])
 fi
 AC_SUBST(GTK_CFLAGS)
 AC_SUBST(GTK_LIBS)
@@ -210,7 +222,8 @@ SNIPPET1='
 ifeq ($(shell id -u),0)
   bindir = $(GIMP_LIBDIR)/plug-ins/fix-ca
 else
-  bindir = $(libdir)/gimp/2.0/plug-ins/fix-ca
+  #bindir = $(libdir)/gimp/2.0/plug-ins/fix-ca
+  bindir = $(libdir)/gimp/2.99/plug-ins/fix-ca
 endif
 '
 AC_SUBST([SNIPPET1])
