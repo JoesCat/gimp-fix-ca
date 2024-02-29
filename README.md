@@ -12,7 +12,7 @@ material such as glass and water.
 
 This plug-in was written by Kriang Lerdsuwanakij lerdsuwa@users.sourceforge.net
 and is distributed under [GNU General Public License Version 3](COPYING) (GPLv3).
-Several patches and improvements were later added in 2023,2024 by Jose Da Silva.
+Several patches and improvements were later added in 2022..2024 by Jose Da Silva.
 
 
 ## Using Fix-CA
@@ -36,6 +36,8 @@ gradually increases toward the edges.  Ideally, the original camera image, rathe
 than a cropped version, should be used to eliminate this type of CA.
 If you are using a cropped image, you need to know approximately where the lens
 center is located and then correct for this based off of the lens center.
+Gimp-Fix-CA version 4.0 now also includes a Lens Centerpoint X/Y position, which
+is set to the image center on startup (You can set this to -1,-1 if you lose the center).
 
 Below is the image used to demonstrate Fix-CA plug-in capability
 [full sized original here](img-fix-ca/full-Wat_Pathum_Wanaram.jpg) available under the
@@ -95,9 +97,10 @@ can be expected if you correct CA before cropping.
 For the majority of your pictures and images, you can assume the lens center is
 also at the image center (unless you're working with a cropped image). If you want
 to fix the [full sized original here](img-fix-ca/full-Wat_Pathum_Wanaram.jpg)
-image further, then Fix-CA (version 4.0) now adds the ability to also move the
+image further, then Fix-CA version 4.0 now adds the ability to also move the
 lens centerpoint (default is center of image).
-Below you will see added variables LensX, LensY, allowing you to move the lens centerpoint to another location on the image.
+Below you will see added variables LensX, LensY, allowing you to move the lens centerpoint to another location on the image. If you use -1,-1 then Gimp-Fix-CA
+will reset the value to image centerpoint
 
 ![](img-fix-ca/fix-ca-center.jpg)
 
@@ -179,6 +182,8 @@ from the GIMP menu.
 ## Installation method
 
 Developers and Distro installers will be more interested in this install method.
+this method will also include local language support for the included languages.
+You're welcome to help if you can help upgrade/add a language for Gimp-Fix-CA.
 
 Installing from Git master requires 2 preparatory steps:
 
@@ -222,6 +227,7 @@ make install
 
 ## Version History
 
+- 4.0 (February 29, 2024) Upgraded code to use GIMP-2.10 API. Now Gimp-Fix-CA works with RGB/RGBA with precisions of 8bit, 16bit, 32bit, or double for each color of R,G,B,A. Also added Lens X/Y center and a lens centerline in the preview window. Local Language support now included for the installable Gimp-Fix-CA. This version is bumped to 4.0 since it requires GIMP-2.10.xx, and also because non-interactive scripting also requires Lateral Lens X/Y positions (default=-1,-1)
 - 3.0.4 (December 2, 2023) mostly edits around make system. Minimal mods to fix-ca.c code (which needs updating).
 - 3.0.3 (October 8, 2022) autoconf/automake/configure/make added for building fix.ca
 - 3.0.2 (December 22, 2007) Add the missing tile cache that speed up preview.
@@ -232,4 +238,4 @@ make install
 - 1.0.0 (November 30, 2006) First version.
 
 
-Note: The Original Web page content and pictures are copyrighted (c) 2006, 2007 by Kriang Lerdsuwanakij.
+Note: The Original Web page content and pictures are copyrighted (c) 2006, 2007 by Kriang Lerdsuwanakij. New Added images and web page content added 2022..2024 by Jose Da Silva are under the same license as this GPL3+ project.

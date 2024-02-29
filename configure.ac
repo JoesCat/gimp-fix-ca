@@ -1,7 +1,7 @@
 # -*- Autoconf -*-
 dnl Process this file with "autoreconf -i;automake" to produce a configure script.
 
-# Copyright (C) 2022 by Joe Da Silva
+# Copyright (C) 2022 by Jose Da Silva
 
 AC_PREREQ([2.68])
 #--------------------------------------------------------------------------
@@ -20,8 +20,8 @@ AC_PREREQ([2.68])
 #   fix_ca_minor_version = 0;
 #
 m4_define([fix_ca_name], [gimp-fix-ca])
-m4_define([fix_ca_major_version], [3.0])
-m4_define([fix_ca_minor_version], [4])
+m4_define([fix_ca_major_version], [4])
+m4_define([fix_ca_minor_version], [0])
 m4_define([fix_ca_version],[fix_ca_major_version.fix_ca_minor_version])
 m4_define([fix_ca_package_name], [gimp-fix-ca])
 m4_define([fix_ca_package_home], [https://github.com/JoesCat/gimp-fix-ca])
