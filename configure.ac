@@ -151,13 +151,13 @@ AC_SUBST(DATADIR)
 ACLOCAL="$ACLOCAL $ACLOCAL_FLAGS"
 AC_SUBST([ACLOCAL],["${ACLOCAL}"])
 
-# Check for libgimp/gimp.h include file and libgimp library. LGPL
+# Check for libgimp/gimp.h include file and libgimp library.
 GIMP_CFLAGS=
 GIMP_LIBS=
 have_libgimp=no
 PKG_CHECK_MODULES([GIMP],[gimp-2.0 >= 2.10.0 gimpui-2.0 >= 2.10.0],[have_libgimp=yes])
 if test x"${have_libgimp}" != xyes; then
-    AC_MSG_FAILURE([ERROR: Please install the developer version of libgimp.],[1])
+    AC_MSG_FAILURE([ERROR: Please install the developer version of libgimp2.],[1])
 fi
 AC_SUBST(GIMP_CFLAGS)
 AC_SUBST(GIMP_LIBS)
@@ -167,6 +167,16 @@ GIMP_DATADIR=`${PKG_CONFIG} --variable=gimpdatadir gimp-2.0`
 AC_SUBST(GIMP_DATADIR)
 
 AM_CONDITIONAL([HAVEGIMPTOOL],[test "${GIMPTOOL}"x != x])
+
+GTK_CFLAGS=
+GTK_LIBS=
+have_libgtk=no
+PKG_CHECK_MODULES([GTK],[gtk+-2.0],[have_libgtk=yes])
+if test x"${have_libgtk}" != xyes; then
+    AC_MSG_FAILURE([ERROR: Please install the developer version of libgtk+2.],[1])
+fi
+AC_SUBST(GTK_CFLAGS)
+AC_SUBST(GTK_LIBS)
 
 CPPFLAGS="${CPPFLAGS} AS_ESCAPE([-I${top_builddir}]) AS_ESCAPE([-I${top_srcdir}])"
 AC_SUBST([CPPFLAGS],["${CPPFLAGS}"])
@@ -180,11 +190,6 @@ AC_ARG_ENABLE([debugtime],
 if test "x$enable_debugtime" = xyes || test "x$enable_debugtime" = xtrue ; then
   AC_DEFINE([DEBUG_TIME],1,[Define if debugging time using printf.])
 fi
-
-#--------------------------------------------------------------------------
-# Pass variables to fix-ca-config.h
-AC_DEFINE([FIX_CA_MAJOR_VERSION],["fix_ca_major_version"],[gimp-fix-ca major version])
-AC_DEFINE([FIX_CA_MINOR_VERSION],["fix_ca_minor_version"],[gimp-fix-ca minor version])
 
 #--------------------------------------------------------------------------
 # Pass variables to MAKEFILE.AM
@@ -220,6 +225,10 @@ AC_SUBST([SNIPPET2])
 AM_SUBST_NOTMAKE([SNIPPET2])
 
 #--------------------------------------------------------------------------
+# Pass variables to fix-ca-config.h
+AC_DEFINE([FIX_CA_MAJOR_VERSION],["fix_ca_major_version"],[gimp-fix-ca major version])
+AC_DEFINE([FIX_CA_MINOR_VERSION],["fix_ca_minor_version"],[gimp-fix-ca minor version])
+
 # Put ifndef wrapper on fix-ca-config.h so we don't call it repeatedly.
 AH_TOP([#ifndef FIX_CA_CONFIG_H
 #define FIX_CA_CONFIG_H 1])
@@ -251,6 +260,8 @@ Configuration:
   Config FCA_LIB	${FCA_LIB}
   GIMP_CFLAGS		${GIMP_CFLAGS}
   GIMP_LIBS		${GIMP_LIBS}
+  GTK_CFLAGS		${GTK_CFLAGS}
+  GTK_LIBS		${GTK_LIBS}
   CFLAGS		${CFLAGS}
   LIBS			${LIBS}
 ])

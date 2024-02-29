@@ -7,7 +7,7 @@
 Name:		@FIX_CA_PACKAGE_NAME@
 Version:	@FIX_CA_VERSION@
 Release:	0
-Summary:	A Gimp plugin for correcting Chromatic Aberration (CA)
+Summary:	A Gimp2 plugin for correcting Chromatic Aberration (CA)
 License:	GPLv3+
 Group:		Graphics/Editors and Converters
 URL:		https://github.com/JoesCat/gimp-fix-ca
@@ -24,7 +24,7 @@ Requires:       gimp >= 2.10.0
 
 
 %description
-A Gimp plug-in to correct Chromatic Aberration (CA).
+A Gimp2 plug-in to correct Chromatic Aberration (CA).
 Fix-CA can fix Lateral CA caused due to light travelling through lenses,
 and fix Directional CA due to light travelling through dense material
 such as glass or water.
