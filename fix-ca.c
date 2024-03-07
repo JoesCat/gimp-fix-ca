@@ -56,8 +56,8 @@
 #endif
 
 #define PLUG_IN_PROC        "plug-in-fix-ca"
-#define PLUG_IN_BINARY      "fix-ga"
 #define PLUG_IN_ROLE        "gimp-fix-ca"
+#define PLUG_IN_BINARY      "fix-ga"
 //-------#define SPIN_BUTTON_WIDTH    8
 //-------#define COLOR_BUTTON_WIDTH  55
 
@@ -98,23 +98,31 @@ typedef struct {
   gdouble  x_red;
   gdouble  y_blue;
   gdouble  y_red;
-  /* private */
-  GimpDrawable *drawable;
+  gboolean reset_values;
 } FixCaParams;
+
+typedef struct {
+  FixCaParams  params; /* GIMP args */
+  /* private, internal use */
+  GimpDrawable *drawable;
+  gint bpp;
+  gint bpc;
+} MyParams;
 
 /* Global default */
 static const FixCaParams fix_ca_params_default = {
-  0.0,  /* blue */
-  0.0,  /* red  */
-  -1.0, /* lens_x */
-  -1.0, /* lens_y */
-  TRUE, /* update preview */
+  0.0,   /* blue */
+  0.0,   /* red  */
+  -1.0,  /* lens_x */
+  -1.0,  /* lens_y */
+  TRUE,  /* update preview */
   GIMP_INTERPOLATION_LINEAR, /* do linear interpolation */
-  0.0,  /* saturation */
-  0.0,  /* x_blue */
-  0.0,  /* x_red  */
-  0.0,  /* y_blue */
-  0.0,  /* y_red  */
+  0.0,   /* saturation */
+  0.0,   /* x_blue */
+  0.0,   /* x_red  */
+  0.0,   /* y_blue */
+  0.0,   /* y_red  */
+  FALSE, /* reset_values */
   NULL
 };
 
@@ -139,8 +147,10 @@ static GimpValueArray *fixca_run	     (GimpProcedure	   *procedure,
 static int	       fix_ca		     (GimpDrawable	   *drawable,
 					      FixCaParams	   *params);
 
-gboolean	       fix_ca_dialog	     (GimpDrawable	   *drawable,
-					      FixCaParams	   *params);
+//gboolean	       fix_ca_dialog	     (GimpDrawable	   *drawable,
+//					      FixCaParams	   *params);
+static gboolean	       fix_ca_dialog	     (GimpDrawable	   *drawable,
+					      MyParams		   *params);
 
 static void	       fix_ca_region	     (guchar		   *srcPTR,
 					      guchar		   *dstPTR,
@@ -158,8 +168,10 @@ static void	       fix_ca_region	     (guchar		   *srcPTR,
 static void	       fix_ca_help	     (const gchar	   *help_id,
 					      gpointer		    help_data);
 
+//void		       preview_update	     (GimpPreview	   *preview,
+//					      FixCaParams	   *params);
 void		       preview_update	     (GimpPreview	   *preview,
-					      FixCaParams	   *params);
+					      MyParams		   *params);
 
 G_DEFINE_TYPE(FixCa, fixca, GIMP_TYPE_PLUG_IN)
 
@@ -171,7 +183,6 @@ static void fixca_class_init(FixCaClass *klass) {
 
   plug_in_class->query_procedures = fixca_query_procedures;
   plug_in_class->create_procedure = fixca_create_procedure;
-
   //plug_in_class->set_i18n         = STD_SET_I18N;
 }
 
@@ -191,7 +202,7 @@ static GimpProcedure *fixca_create_procedure(GimpPlugIn *plug_in,
 					 GIMP_PDB_PROC_TYPE_PLUGIN,
 					 fixca_run, NULL, NULL);
 
-    gimp_procedure_set_image_types(procedure, "*");
+    gimp_procedure_set_image_types(procedure, "RGB*");
     gimp_procedure_set_sensitivity_mask(procedure,
 					GIMP_PROCEDURE_SENSITIVE_DRAWABLE);
 
@@ -232,21 +243,26 @@ static GimpProcedure *fixca_create_procedure(GimpPlugIn *plug_in,
 		      _("lens_Y"), _("Lens center Y (lateral)"),
 		      -1, GIMP_MAX_IMAGE_SIZE, -1, G_PARAM_READWRITE);
     GIMP_PROC_ARG_INT(procedure, "interpolation",
-		      _("_interpolation"),
+		      _("_Interpolation"),
 		      _("Interpolation 0=None/1=Linear/2=Cubic"),
 		      0, 2, 1, G_PARAM_READWRITE);
     GIMP_PROC_ARG_DOUBLE(procedure, "x_blue",
-			 _("X Blue"), _("Blue amount, X axis (directional)"),
+			 _("X B_lue"), _("Blue amount, X axis (directional)"),
 			 -INPUT_MAX, INPUT_MAX, 0.0, G_PARAM_READWRITE);
     GIMP_PROC_ARG_DOUBLE(procedure, "x_red",
-			 _("X Red"), _("Red amount, X axis (directional)"),
+			 _("X R_ed"), _("Red amount, X axis (directional)"),
 			 -INPUT_MAX, INPUT_MAX, 0.0, G_PARAM_READWRITE);
     GIMP_PROC_ARG_DOUBLE(procedure, "y_blue",
-			 _("Y Blue"), _("Blue amount, Y axis (directional)"),
+			 _("Y Bl_ue"), _("Blue amount, Y axis (directional)"),
 			 -INPUT_MAX, INPUT_MAX, 0.0, G_PARAM_READWRITE);
     GIMP_PROC_ARG_DOUBLE(procedure, "y_red",
-			 _("Y Red"), _("Red amount, Y axis (directional)"),
+			 _("Y Re_d"), _("Red amount, Y axis (directional)"),
 			 -INPUT_MAX, INPUT_MAX, 0.0, G_PARAM_READWRITE);
+    GIMP_PROC_ARG_BOOLEAN (procedure, "reset_values",
+			   _("_Reset all values to default"),
+			   _("Reset all values to default"),
+			   FALSE,
+			   G_PARAM_READWRITE);
   }
 
   return procedure;
@@ -261,6 +277,7 @@ static GimpValueArray *fixca_run(GimpProcedure	      *procedure,
 				 gpointer	       run_data) {
   GimpDrawable      *drawable;
   FixCaParams        fix_ca_params;
+  MyParams           my_params;
   GimpPDBStatusType  status = GIMP_PDB_SUCCESS;
   GError            *error = NULL;
 
@@ -277,14 +294,15 @@ static GimpValueArray *fixca_run(GimpProcedure	      *procedure,
   if (n_drawables != 1) {
     g_set_error(&error, GIMP_PLUG_IN_ERROR, 0,
 		_("Procedure '%s' only works with one drawable."),
-		PLUG_IN_PROC);
+		gimp_procedure_get_name(procedure));
 
     return gimp_procedure_new_return_values(procedure,
 					    GIMP_PDB_CALLING_ERROR,
 					    error);
   } else {
-    fix_ca_params.drawable = drawable = drawables[0];
+    my_params.drawable = drawable = drawables[0];
   }
+
   if (!gimp_drawable_is_rgb(drawable)) {
     g_set_error(&error, GIMP_PLUG_IN_ERROR, 0,
 		_("Procedure '%s' only works with RGB or RGBA."),
@@ -295,65 +313,47 @@ static GimpValueArray *fixca_run(GimpProcedure	      *procedure,
 					    error);
   }
 
-  if (run_mode == GIMP_RUN_NONINTERACTIVE) {
-    fix_ca_params.blue = GIMP_VALUES_GET_DOUBLE(args, 0);
-    fix_ca_params.red  = GIMP_VALUES_GET_DOUBLE(args, 1);
-//    if (nparams < 3)
-      fix_ca_params.lens_x = fix_ca_params_default.lens_y;
-//    else
-      fix_ca_params.lens_x = GIMP_VALUES_GET_INT(args, 2);
-//    if (nparams < 4)
-      fix_ca_params.lens_y = fix_ca_params_default.lens_y;
-//    else
-      fix_ca_params.lens_y = GIMP_VALUES_GET_INT(args, 3);
-//    if (nparams < 5)
-      fix_ca_params.interpolation = GIMP_INTERPOLATION_NONE;
-//    else
-      fix_ca_params.interpolation = GIMP_VALUES_GET_INT(args, 4);
-//    if (nparams < 6)
-      fix_ca_params.x_blue = fix_ca_params_default.x_blue;
-//    else
-      fix_ca_params.x_blue = GIMP_VALUES_GET_DOUBLE(args, 5);
-//    if (nparams < 7)
-      fix_ca_params.x_red  = fix_ca_params_default.x_red;
-//    else
-      fix_ca_params.x_red  = GIMP_VALUES_GET_DOUBLE(args, 6);
-//    if (nparams < 8)
-      fix_ca_params.y_blue = fix_ca_params_default.y_blue;
-//    else
-      fix_ca_params.y_blue = GIMP_VALUES_GET_DOUBLE(args, 7);
-//    if (nparams < 9)
-      fix_ca_params.y_red  = fix_ca_params_default.y_red;
-//    else
-      fix_ca_params.y_red  = GIMP_VALUES_GET_DOUBLE(args, 8);
-
-    if (fix_ca_params.blue < -INPUT_MAX || \
-	fix_ca_params.blue >  INPUT_MAX || \
-	fix_ca_params.red  < -INPUT_MAX || \
-	fix_ca_params.red  >  INPUT_MAX || \
-	fix_ca_params.interpolation < 0 || \
-	fix_ca_params.interpolation > 2 || \
-	fix_ca_params.x_blue < -INPUT_MAX || \
-	fix_ca_params.x_blue >  INPUT_MAX || \
-	fix_ca_params.x_red  < -INPUT_MAX || \
-	fix_ca_params.x_red  >  INPUT_MAX || \
-	fix_ca_params.y_blue < -INPUT_MAX || \
-	fix_ca_params.y_blue >  INPUT_MAX || \
-	fix_ca_params.y_red  < -INPUT_MAX || \
-	fix_ca_params.y_red  >  INPUT_MAX) {
+  /* figure-out bytes per pixel, and per color precision */
+  my_params.bpp = gimp_drawable_get_bpp(drawable);
+  switch (gimp_image_get_precision(image)) {
+    case GIMP_PRECISION_U8_LINEAR:
+    case GIMP_PRECISION_U8_NON_LINEAR:
+    case GIMP_PRECISION_U8_PERCEPTUAL:
+      my_params.bpc = 1;
+      break;
+    case GIMP_PRECISION_U16_LINEAR:
+    case GIMP_PRECISION_U16_NON_LINEAR:
+    case GIMP_PRECISION_U16_PERCEPTUAL:
+      my_params.bpc = 2;
+      break;
+    case GIMP_PRECISION_U32_LINEAR:
+    case GIMP_PRECISION_U32_NON_LINEAR:
+    case GIMP_PRECISION_U32_PERCEPTUAL:
+      my_params.bpc = 4;
+      break;
+    case GIMP_PRECISION_DOUBLE_LINEAR:
+    case GIMP_PRECISION_DOUBLE_NON_LINEAR:
+    case GIMP_PRECISION_DOUBLE_PERCEPTUAL:
+      my_params.bpc = -8; /* IEEE 754 double precision */
+      break;
+    case GIMP_PRECISION_FLOAT_LINEAR:
+    case GIMP_PRECISION_FLOAT_NON_LINEAR:
+    case GIMP_PRECISION_FLOAT_PERCEPTUAL:
+      my_params.bpc = -4; /* IEEE 754 single precision */
+      break;
+    case GIMP_PRECISION_HALF_LINEAR:
+    case GIMP_PRECISION_HALF_NON_LINEAR:
+    case GIMP_PRECISION_HALF_PERCEPTUAL:
+      my_params.bpc = -2; /* IEEE 754 half precision */
+      break;
+    default:
       g_set_error(&error, GIMP_PLUG_IN_ERROR, 0,
-		  _("Parameter out of range!"));
+		  _("Procedure '%s' cannot use this precision."),
+		  PLUG_IN_PROC);
       return gimp_procedure_new_return_values(procedure,
 					      GIMP_PDB_CALLING_ERROR,
 					      error);
-    }
   }
-
-  // NOTE: removed gimp_set_data() and gimp_get_data() in gimp3
-  //if (run_mode == GIMP_RUN_WITH_LAST_VALS) {
-  //  gimp_get_data(DATA_KEY_VALS, &fix_ca_params);
-  //  fix_ca_params.drawable = drawable;
-  //}
 
   /* In interactive mode, display a dialog to advertise the exercise. */
   if (run_mode == GIMP_RUN_INTERACTIVE) {
@@ -366,22 +366,91 @@ static GimpValueArray *fixca_run(GimpProcedure	      *procedure,
 					      error);
     }
 
-    if (!fix_ca_dialog(drawable, &fix_ca_params)) {
+    if (!fix_ca_dialog(drawable, &my_params)) {
       return gimp_procedure_new_return_values(procedure,
 					      GIMP_PDB_CANCEL,
 					      NULL);
     }
   }
 
-  if (status == GIMP_PDB_SUCCESS && fix_ca(drawable, &fix_ca_params)) {
-    status = GIMP_PDB_CALLING_ERROR;
+//  g_object_get(args,
+//	       "blue",   &my_params.params.blue,
+//	       "red",    &my_params.params.red,
+//	       "lens_x", &my_params.params.lens_x,
+//	       "lens_y", &my_params.params.lens_y,
+//	       NULL);
+
+  if (run_mode == GIMP_RUN_NONINTERACTIVE) {
+    my_params.params.blue = GIMP_VALUES_GET_DOUBLE(args, 0);
+    my_params.params.red  = GIMP_VALUES_GET_DOUBLE(args, 1);
+//    if (nparams < 3)
+      my_params.params.lens_x = fix_ca_params_default.lens_y;
+//    else
+      my_params.params.lens_x = GIMP_VALUES_GET_INT(args, 2);
+//    if (nparams < 4)
+      my_params.params.lens_y = fix_ca_params_default.lens_y;
+//    else
+      my_params.params.lens_y = GIMP_VALUES_GET_INT(args, 3);
+//    if (nparams < 5)
+      my_params.params.interpolation = GIMP_INTERPOLATION_NONE;
+//    else
+      my_params.params.interpolation = GIMP_VALUES_GET_INT(args, 4);
+//    if (nparams < 6)
+      my_params.params.x_blue = fix_ca_params_default.x_blue;
+//    else
+      my_params.params.x_blue = GIMP_VALUES_GET_DOUBLE(args, 5);
+//    if (nparams < 7)
+      my_params.params.x_red  = fix_ca_params_default.x_red;
+//    else
+      my_params.params.x_red  = GIMP_VALUES_GET_DOUBLE(args, 6);
+//    if (nparams < 8)
+      my_params.params.y_blue = fix_ca_params_default.y_blue;
+//    else
+      my_params.params.y_blue = GIMP_VALUES_GET_DOUBLE(args, 7);
+//    if (nparams < 9)
+      my_params.params.y_red  = fix_ca_params_default.y_red;
+//    else
+      my_params.params.y_red  = GIMP_VALUES_GET_DOUBLE(args, 8);
+
+    if (my_params.params.blue < -INPUT_MAX || \
+	my_params.params.blue >  INPUT_MAX || \
+	my_params.params.red  < -INPUT_MAX || \
+	my_params.params.red  >  INPUT_MAX || \
+	my_params.params.interpolation < 0 || \
+	my_params.params.interpolation > 2 || \
+	my_params.params.x_blue < -INPUT_MAX || \
+	my_params.params.x_blue >  INPUT_MAX || \
+	my_params.params.x_red  < -INPUT_MAX || \
+	my_params.params.x_red  >  INPUT_MAX || \
+	my_params.params.y_blue < -INPUT_MAX || \
+	my_params.params.y_blue >  INPUT_MAX || \
+	my_params.params.y_red  < -INPUT_MAX || \
+	my_params.params.y_red  >  INPUT_MAX) {
+      g_set_error(&error, GIMP_PLUG_IN_ERROR, 0,
+		  _("Parameter out of range!"));
+      return gimp_procedure_new_return_values(procedure,
+					      GIMP_PDB_CALLING_ERROR,
+					      error);
+    }
+  }
+
+  // NOTE: removed gimp_set_data() and gimp_get_data() in gimp3
+  //if (run_mode == GIMP_RUN_WITH_LAST_VALS) {
+  //  gimp_get_data(DATA_KEY_VALS, &fix_ca_params);
+  //  my_params.params.drawable = drawable;
+  //}
+
+  if (status == GIMP_PDB_SUCCESS && fix_ca(drawable, &my_params.params)) {
+      return gimp_procedure_new_return_values(procedure,
+					      GIMP_PDB_CALLING_ERROR,
+					      error);
   } else {
     if (run_mode != GIMP_RUN_NONINTERACTIVE)
       gimp_displays_flush ();
 
   // NOTE: removed gimp_set_data() and gimp_get_data() in gimp3
   // if (run_mode == GIMP_RUN_INTERACTIVE)
-  //  gimp_set_data(DATA_KEY_VALS, &fix_ca_params, sizeof(fix_ca_params));
+  //  gimp_set_data(DATA_KEY_VALS, &my_params.params, sizeof(my_params.params));
 
     //---------gimp_drawable_detach(drawable);
   }
@@ -566,7 +635,7 @@ static int fix_ca(GimpDrawable *drawable, FixCaParams *params) {
   return 0;
 }
 
-void preview_update(GimpPreview *preview, FixCaParams *params) {
+void preview_update(GimpPreview *preview, MyParams *my_params) {
   gint	      b, i, j, x, y, width, height, xImg, yImg, bppImg, bpcImg, size;
   GeglBuffer *srcBuf;
   guchar     *srcImg, *destImg, *prevImg;
@@ -576,8 +645,8 @@ void preview_update(GimpPreview *preview, FixCaParams *params) {
   gimp_preview_get_position(preview, &x, &y);
   gimp_preview_get_size(preview, &width, &height);
 
-  format = gimp_drawable_get_format(params->drawable);
-  bppImg = gimp_drawable_get_bpp(params->drawable);
+  format = gimp_drawable_get_format(my_params->drawable);
+  bppImg = gimp_drawable_get_bpp(my_params->drawable);
   bpcImg = color_size(format);
 #ifdef DEBUG_TIME
   printf("preview_update(), bppImg=%d, bpcImg=%d, x=%d y=%d w=%d h=%d\n",
@@ -586,18 +655,18 @@ void preview_update(GimpPreview *preview, FixCaParams *params) {
   if (bpcImg <= -99)
     return;
 
-  xImg = gimp_drawable_get_width(params->drawable);
-  yImg = gimp_drawable_get_height(params->drawable);
+  xImg = gimp_drawable_get_width(my_params->drawable);
+  yImg = gimp_drawable_get_height(my_params->drawable);
   size = xImg * yImg * bppImg;
   srcImg  = g_new(guchar, size);
   destImg = g_new(guchar, size);
   prevImg = g_new(guchar, width * height * bppImg);
 
-  srcBuf  = gimp_drawable_get_buffer(params->drawable);
+  srcBuf  = gimp_drawable_get_buffer(my_params->drawable);
   gegl_buffer_get(srcBuf, GEGL_RECTANGLE(0, 0, xImg, yImg), 1.0,
 		  format, srcImg, GEGL_AUTO_ROWSTRIDE, GEGL_ABYSS_NONE);
 
-  fix_ca_region(srcImg, destImg, xImg, yImg, bppImg, bpcImg, params,
+  fix_ca_region(srcImg, destImg, xImg, yImg, bppImg, bpcImg, &my_params->params,
 		0, xImg, y, (y + height), FALSE);
 
   b = absolute(bpcImg);
@@ -622,7 +691,7 @@ void preview_update(GimpPreview *preview, FixCaParams *params) {
   g_free(srcImg);
 }
 
-gboolean fix_ca_dialog(GimpDrawable *drawable, FixCaParams *params) {
+static gboolean fix_ca_dialog(GimpDrawable *drawable, MyParams *my_params) {
   gchar     *title;
   GtkWidget *dialog;
   GtkWidget *main_vbox;
@@ -632,10 +701,11 @@ gboolean fix_ca_dialog(GimpDrawable *drawable, FixCaParams *params) {
   GtkWidget *frame;
 //  GtkObject *adj;
   GtkWidget *adj;
+  GtkWidget *button;
   gboolean   run;
   gint       xImg, yImg;
 
-//  gimp_ui_init("fix_ca");
+  gimp_ui_init(PLUG_IN_BINARY);
   title = g_strdup_printf(_("Chromatic Aberration"));
   dialog = gimp_dialog_new(title, "fix_ca",
 			   NULL, (GtkDialogFlags)(0),
@@ -647,6 +717,8 @@ gboolean fix_ca_dialog(GimpDrawable *drawable, FixCaParams *params) {
   g_free(title);
 
   main_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+  //gtk_widget_set_visible(main_vbox, TRUE);
+
   //gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), main_vbox);
   gtk_container_set_border_width(GTK_CONTAINER(main_vbox), 12);
   gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dialog))),
@@ -656,133 +728,167 @@ gboolean fix_ca_dialog(GimpDrawable *drawable, FixCaParams *params) {
   preview = gimp_drawable_preview_new_from_drawable(drawable);
   xImg = gimp_drawable_get_width(drawable);
   yImg = gimp_drawable_get_height(drawable);
-  if (params->lens_x < 0 || params->lens_x >= xImg)
-    params->lens_x = round(xImg/2);
-  if (params->lens_y < 0 || params->lens_y >= yImg)
-    params->lens_y = round(yImg/2);
+  if (my_params->params.lens_x < 0 || my_params->params.lens_x >= xImg)
+    my_params->params.lens_x = round(xImg/2);
+  if (my_params->params.lens_y < 0 || my_params->params.lens_y >= yImg)
+    my_params->params.lens_y = round(yImg/2);
 
   gtk_box_pack_start(GTK_BOX(main_vbox), preview, TRUE, TRUE, 0);
   gtk_widget_show(preview);
 
   g_signal_connect(preview, "invalidated",
 		   G_CALLBACK(preview_update),
-		   params);
-
+		   my_params);
+/*
   grid = gtk_grid_new();
   gtk_grid_set_column_spacing(GTK_GRID(grid), 6);
   gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
   gtk_box_pack_start(GTK_BOX(main_vbox), grid, FALSE, FALSE, 0);
   gtk_widget_show(grid);
-
-  adj = gimp_scale_entry_new(_("Preview _saturation:"), params->saturation, -100.0, 100.0, 0);
+*/
+  adj = gimp_scale_entry_new(_("Preview _saturation:"),
+			     my_params->params.saturation, -100.0, 100.0, 0);
   gimp_label_spin_set_increments(GIMP_LABEL_SPIN(adj), 1, 10);
+  gimp_help_set_help_data(adj,
+                          _("Saturate colors in preview window to help you see overlaps"),
+                          NULL);
 
   g_object_set_data(G_OBJECT(adj), "config",  preview);
   g_signal_connect(adj, "value_changed",
 		   G_CALLBACK(gimp_double_adjustment_update),
-		   &(params->saturation));
+		   &(my_params->params.saturation));
   g_signal_connect_swapped(adj, "value_changed",
 			   G_CALLBACK(gimp_preview_invalidate),
 			   preview);
+  gtk_box_pack_start(GTK_BOX(main_vbox), adj, FALSE, FALSE, 0);
+  gtk_widget_show(adj);
 
   combo = gimp_int_combo_box_new(_("None (Fastest)"), GIMP_INTERPOLATION_NONE,
 				 _("Linear"),	      GIMP_INTERPOLATION_LINEAR,
 				 _("Cubic (Best)"),   GIMP_INTERPOLATION_CUBIC,
 				 NULL);
-
   gimp_int_combo_box_connect(GIMP_INT_COMBO_BOX(combo),
-			     params->interpolation,
+			     my_params->params.interpolation,
 			     G_CALLBACK(gimp_int_combo_box_get_active),
-			     &params->interpolation, NULL);
+			     &my_params->params.interpolation, NULL);
+  gimp_help_set_help_data(combo,
+                          _("Method of how to move Blue and Red Pixels"),
+                          NULL);
+//  gimp_grid_attach_aligned(GTK_GRID(grid), 0, 1, _("_Interpolation:"),
+//                           0.0, 0.5, combo, 2);
+  gtk_box_pack_start(GTK_BOX(main_vbox), combo, FALSE, FALSE, 0);
+  gtk_widget_show(combo);
 
-  gimp_grid_attach_aligned(GTK_GRID(grid), 0, 1, _("_Interpolation:"),
-                           0.0, 0.5, combo, 2);
   g_signal_connect_swapped(combo, "changed",
 			   G_CALLBACK(gimp_preview_invalidate),
 			   preview);
 
   frame = gimp_frame_new(_("Lateral"));
+  gimp_help_set_help_data(frame,
+                          _("Do corrections for lens affected chromatic aboration"),
+                          NULL);
   gtk_box_pack_start(GTK_BOX(main_vbox), frame, FALSE, FALSE, 0);
   gtk_widget_show(frame);
 
-  grid = gtk_grid_new();
-  gtk_grid_set_column_spacing(GTK_GRID(grid), 6);
-  gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
-  gtk_container_add(GTK_CONTAINER(frame), grid);
-  gtk_widget_show(grid);
-
-  adj = gimp_scale_entry_new(_("_Blue:"), params->blue, -INPUT_MAX, INPUT_MAX, 1);
+  adj = gimp_scale_entry_new(_("_Blue:"), my_params->params.blue, -INPUT_MAX, INPUT_MAX, 1);
   gimp_label_spin_set_increments(GIMP_LABEL_SPIN(adj), 0.1, 0.5);
+  gtk_box_pack_start(GTK_BOX(main_vbox), adj, FALSE, FALSE, 0);
+  gtk_widget_show(adj);
 
   g_object_set_data(G_OBJECT(adj), "config",  preview);
   g_signal_connect(adj, "value_changed",
 		   G_CALLBACK(gimp_double_adjustment_update),
-		   &(params->blue));
+		   &(my_params->params.blue));
   g_signal_connect_swapped(adj, "value_changed",
 			   G_CALLBACK(gimp_preview_invalidate),
 			   preview);
 
-  adj = gimp_scale_entry_new(_("_Red:"), params->red, -INPUT_MAX, INPUT_MAX, 1);
+  adj = gimp_scale_entry_new(_("_Red:"), my_params->params.red, -INPUT_MAX, INPUT_MAX, 1);
   gimp_label_spin_set_increments(GIMP_LABEL_SPIN(adj), 0.1, 0.5);
+  gtk_box_pack_start(GTK_BOX(main_vbox), adj, FALSE, FALSE, 0);
+  gtk_widget_show(adj);
 
   g_object_set_data(G_OBJECT(adj), "config",  preview);
   g_signal_connect(adj, "value_changed",
 		   G_CALLBACK(gimp_double_adjustment_update),
-		   &(params->red));
+		   &(my_params->params.red));
   g_signal_connect_swapped(adj, "value_changed",
 			   G_CALLBACK(gimp_preview_invalidate),
 			   preview);
 
-  adj = gimp_scale_entry_new(_("Lens_X:"), params->lens_x, -1, xImg-1, 0);
+  adj = gimp_scale_entry_new(_("Lens_X:"), my_params->params.lens_x, -1, xImg-1, 0);
   gimp_label_spin_set_increments(GIMP_LABEL_SPIN(adj), 10, 100);
+  gtk_box_pack_start(GTK_BOX(main_vbox), adj, FALSE, FALSE, 0);
+  gtk_widget_show(adj);
 
   g_object_set_data(G_OBJECT(adj), "config",  preview);
   g_signal_connect(adj, "value_changed",
 		   G_CALLBACK(gimp_double_adjustment_update),
-		   &(params->lens_x));
+		   &(my_params->params.lens_x));
   g_signal_connect_swapped(adj, "value_changed",
 			   G_CALLBACK(gimp_preview_invalidate),
 			   preview);
 
-  adj = gimp_scale_entry_new(_("Lens_Y:"), params->lens_y, 0, yImg-1, 0);
+  adj = gimp_scale_entry_new(_("Lens_Y:"), my_params->params.lens_y, -1, yImg-1, 0);
   gimp_label_spin_set_increments(GIMP_LABEL_SPIN(adj), 10, 100);
+  gtk_box_pack_start(GTK_BOX(main_vbox), adj, FALSE, FALSE, 0);
+  gtk_widget_show(adj);
 
   g_object_set_data(G_OBJECT(adj), "config",  preview);
   g_signal_connect(adj, "value_changed",
 		   G_CALLBACK(gimp_double_adjustment_update),
-		   &(params->lens_y));
+		   &(my_params->params.lens_y));
   g_signal_connect_swapped(adj, "value_changed",
 			   G_CALLBACK(gimp_preview_invalidate),
 			   preview);
+/*
+  //button = gtk_check_button_new_with_mnemonic(_("Reset Lens Center"));
+  //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button),
+  //                              data->use_full_page);
+  //gtk_box_pack_start(GTK_BOX(main_vbox), button, FALSE, FALSE, 0);
+  //g_signal_connect(button, "toggled",
+  //                  G_CALLBACK(print_size_info_use_full_page_toggled),
+  //                  NULL);
+  //gtk_widget_show(button);
 
+  //button = gtk_check_button_new_with_mnemonic(_("_Draw Crop Marks"));
+  //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON (button),
+  //                              data->draw_crop_marks);
+  //gtk_box_pack_start(GTK_BOX(main_vbox), button, FALSE, FALSE, 0);
+  //g_signal_connect(button, "toggled",
+  //                  G_CALLBACK(print_draw_crop_marks_toggled),
+  //                  NULL);
+  //gtk_widget_show(button);
+*/
   frame = gimp_frame_new(_("Directional, X axis"));
+  gimp_help_set_help_data(adj,
+                          _("Do flat directional corrections along the X/Y axis"),
+                          NULL);
   gtk_box_pack_start(GTK_BOX(main_vbox), frame, FALSE, FALSE, 0);
   gtk_widget_show(frame);
 
-  grid = gtk_grid_new();
-  gtk_grid_set_column_spacing(GTK_GRID(grid), 6);
-  gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
-  gtk_container_add(GTK_CONTAINER(frame), grid);
-  gtk_widget_show(grid);
-
-  adj = gimp_scale_entry_new(_("Blue:"), params->x_blue, -INPUT_MAX, INPUT_MAX, 1);
+  adj = gimp_scale_entry_new(_("B_lue:"), my_params->params.x_blue, -INPUT_MAX, INPUT_MAX, 1);
   gimp_label_spin_set_increments(GIMP_LABEL_SPIN(adj), 0.1, 0.5);
+  gtk_box_pack_start(GTK_BOX(main_vbox), adj, FALSE, FALSE, 0);
+  gtk_widget_show(adj);
 
   g_object_set_data(G_OBJECT(adj), "config",  preview);
   g_signal_connect(adj, "value_changed",
 		   G_CALLBACK(gimp_double_adjustment_update),
-		   &(params->x_blue));
+		   &(my_params->params.x_blue));
   g_signal_connect_swapped(adj, "value_changed",
 			   G_CALLBACK(gimp_preview_invalidate),
 			   preview);
 
-  adj = gimp_scale_entry_new(_("Red:"), params->x_red, -INPUT_MAX, INPUT_MAX, 1);
+  adj = gimp_scale_entry_new(_("R_ed:"), my_params->params.x_red, -INPUT_MAX, INPUT_MAX, 1);
   gimp_label_spin_set_increments(GIMP_LABEL_SPIN(adj), 0.1, 0.5);
+  gtk_box_pack_start(GTK_BOX(main_vbox), adj, FALSE, FALSE, 0);
+  gtk_widget_show(adj);
 
   g_object_set_data(G_OBJECT(adj), "config",  preview);
   g_signal_connect(adj, "value_changed",
 		   G_CALLBACK(gimp_double_adjustment_update),
-		   &(params->x_red));
+		   &(my_params->params.x_red));
   g_signal_connect_swapped(adj, "value_changed",
 			   G_CALLBACK(gimp_preview_invalidate),
 			   preview);
@@ -791,30 +897,28 @@ gboolean fix_ca_dialog(GimpDrawable *drawable, FixCaParams *params) {
   gtk_box_pack_start(GTK_BOX(main_vbox), frame, FALSE, FALSE, 0);
   gtk_widget_show(frame);
 
-  grid = gtk_grid_new();
-  gtk_grid_set_column_spacing(GTK_GRID(grid), 6);
-  gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
-  gtk_container_add(GTK_CONTAINER(frame), grid);
-  gtk_widget_show(grid);
-
-  adj = gimp_scale_entry_new(_("Blue:"), params->y_blue, -INPUT_MAX, INPUT_MAX, 1);
+  adj = gimp_scale_entry_new(_("Bl_ue:"), my_params->params.y_blue, -INPUT_MAX, INPUT_MAX, 1);
   gimp_label_spin_set_increments(GIMP_LABEL_SPIN(adj), 0.1, 0.5);
+  gtk_box_pack_start(GTK_BOX(main_vbox), adj, FALSE, FALSE, 0);
+  gtk_widget_show(adj);
 
   g_object_set_data(G_OBJECT(adj), "config",  preview);
   g_signal_connect(adj, "value_changed",
 		   G_CALLBACK(gimp_double_adjustment_update),
-		   &(params->y_blue));
+		   &(my_params->params.y_blue));
   g_signal_connect_swapped(adj, "value_changed",
 			   G_CALLBACK (gimp_preview_invalidate),
 			   preview);
 
-  adj = gimp_scale_entry_new(_("Red:"), params->y_red, -INPUT_MAX, INPUT_MAX, 1);
+  adj = gimp_scale_entry_new(_("Re_d:"), my_params->params.y_red, -INPUT_MAX, INPUT_MAX, 1);
   gimp_label_spin_set_increments(GIMP_LABEL_SPIN(adj), 0.1, 0.5);
+  gtk_box_pack_start(GTK_BOX(main_vbox), adj, FALSE, FALSE, 0);
+  gtk_widget_show(adj);
 
   g_object_set_data(G_OBJECT(adj), "config",  preview);
   g_signal_connect(adj, "value_changed",
 		   G_CALLBACK(gimp_double_adjustment_update),
-		   &(params->y_red));
+		   &(my_params->params.y_red));
   g_signal_connect_swapped(adj, "value_changed",
 			   G_CALLBACK(gimp_preview_invalidate),
 			   preview);
