@@ -76,3 +76,32 @@ jobs:
         run: gimptool-2.0 --install fix-ca.c
       - name: Uninstall local gimp-fix-ca
         run: gimptool-2.0 --uninstall-bin fix-ca
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: melusina-org/setup-macports@v1
+        id: 'macports'
+      - name: sudo port gcc and gimp2  
+        run: sudo port gimp2 gcc gimp2-devel
+      - name: Make local gimp-fix-ca install
+        run: gimptool-2.0 --install fix-ca.c
+      - name: Uninstall local gimp-fix-ca
+        run: gimptool-2.0 --uninstall-bin fix-ca
+  brew:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: brew install gimp-dev
+        run: |
+          brew install autoconf automake libtool gcc
+          brew install --cask gimp
+          autoreconf -i
+          automake
+          ./configure
+      - name: look for gimptool
+        run: which gimptool-2.0
+      - name: Make local gimp-fix-ca install
+        run: gimptool-2.0 --install fix-ca.c
+      - name: Uninstall local gimp-fix-ca
+        run: gimptool-2.0 --uninstall-bin fix-ca
