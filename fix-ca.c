@@ -49,7 +49,11 @@
 #define N_(x)	x
 #endif
 
+#ifdef TEST_FIX_CA
+#define PROCEDURE_NAME	"Test-Fix-CA"
+#else
 #define PROCEDURE_NAME	"Fix-CA"
+#endif
 #define DATA_KEY_VALS	"fix_ca"
 
 /* Size controls in Fix CA dialog box */
@@ -104,7 +108,8 @@ static void	fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			       gint x1, gint x2, gint y1, gint y2,
 			       gboolean show_progress);
 static gboolean	fix_ca_dialog (gint32 drawable_ID, FixCaParams *params);
-static void	preview_update (GimpPreview *preview, FixCaParams *params);
+//static void	preview_update (GimpPreview *preview, FixCaParams *params);
+static void	preview_update (GimpDrawablePreview *preview, FixCaParams *params);
 static int	color_size (const Babl *format);
 static gdouble	get_pixel (guchar *ptr, gint bpc);
 static void	set_pixel (guchar *dest, gdouble d, gint bpc);
@@ -238,6 +243,8 @@ static void run (const gchar *name, gint nparams,
 #endif
 	textdomain( GETTEXT_PACKAGE );
 #endif
+	gegl_init (NULL, NULL);
+
 	switch (run_mode) {
 		case GIMP_RUN_NONINTERACTIVE:
 			fix_ca_params.blue = param[3].data.d_float;
@@ -317,6 +324,8 @@ static void run (const gchar *name, gint nparams,
 		}
 	}
 
+	gegl_exit ();
+
 	values[0].data.d_status = status;
 }
 
@@ -348,8 +357,6 @@ static int fix_ca (gint32 drawable_ID, FixCaParams *params)
 		return -1;
 	}
 
-	//gegl_init (NULL, NULL);
-
 	/* fetch pixel regions and setup shadow buffer */
 	srcBuf  = gimp_drawable_get_buffer (drawable_ID);
 	destBuf = gimp_drawable_get_shadow_buffer (drawable_ID);
@@ -377,8 +384,6 @@ static int fix_ca (gint32 drawable_ID, FixCaParams *params)
 	gimp_drawable_merge_shadow (drawable_ID, TRUE);
 	gimp_drawable_update (drawable_ID, x, y, width, height);
 
-	//gegl_exit ();
-
 #ifdef DEBUG_TIME
 	gettimeofday(&tv2, NULL);
 
@@ -393,7 +398,7 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 	GtkWidget *dialog;
 	GtkWidget *main_vbox;
 	GtkWidget *combo;
-	GtkWidget *preview;
+	GtkWidget *preview; /* GimpDrawablePreview widget */
 	GtkWidget *table;
 	GtkWidget *frame;
 	GtkObject *adj;
@@ -609,8 +614,10 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 	return run;
 }
 
-static void preview_update (GimpPreview *preview, FixCaParams *params)
+//static void preview_update (GtkWidget *widget, FixCaParams *params)
+static void preview_update (GimpDrawablePreview *preview, FixCaParams *params)
 {
+	GimpPreview *ptr;
 	gint32	preview_ID;
 	gint	b, i, j, x, y, width, height, xImg, yImg, bppImg, bpcImg, size;
 	GeglBuffer *srcBuf;
@@ -618,10 +625,12 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 	const Babl *format;
 	gdouble d;
 
-	preview_ID = gimp_drawable_preview_get_drawable_id (preview);
+	/* GimpPreview is a subset of GimpScrolledPreview */
+	ptr = (GimpPreview *)(preview);
+	gimp_preview_get_position (ptr, &x, &y);
+	gimp_preview_get_size (ptr, &width, &height);
 
-	gimp_preview_get_position (preview, &x, &y);
-	gimp_preview_get_size (preview, &width, &height);
+	preview_ID = gimp_drawable_preview_get_drawable_id (preview);
 
 	format = gimp_drawable_get_format (preview_ID);
 	bppImg = babl_format_get_bytes_per_pixel(format);
@@ -661,7 +670,7 @@ static void preview_update (GimpPreview *preview, FixCaParams *params)
 		}
 	}
 
-	gimp_preview_draw_buffer (preview, prevImg, width * bppImg/b);
+	gimp_preview_draw_buffer (ptr, prevImg, width * bppImg/b);
 
 	g_object_unref (srcBuf);
 	g_free(prevImg);
