@@ -1,0 +1,6 @@
+(define (test filename result bluel redl lensx lensy interpolation bluex redx bluey redy)
+  (define image (car (gimp-file-load RUN-NONINTERACTIVE filename filename)))
+  (define drawable (car (gimp-image-get-active-layer image)))
+  (Test-Fix-CA RUN-NONINTERACTIVE image drawable bluel redl lensx lensy interpolation bluex redx bluey redy)
+  (gimp-file-save RUN-NONINTERACTIVE image drawable result result)
+  (gimp-image-delete image))

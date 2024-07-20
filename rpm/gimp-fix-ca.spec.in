@@ -4,14 +4,14 @@
 %define         moname    gimp20-fix-ca
 %define         plugindir %{_libdir}/gimp/2.0/plug-ins/fix-ca
 
-Name:		@FIX_CA_PACKAGE_NAME@
+Name:		gimp-fix-ca
 Version:	@FIX_CA_VERSION@
 Release:	0
 Summary:	A Gimp2 plugin for correcting Chromatic Aberration (CA)
 License:	GPLv3+
 Group:		Graphics/Editors and Converters
 URL:		https://github.com/JoesCat/gimp-fix-ca
-Source0:	https://github.com/JoesCat/gimp-fix-ca/releases/download/%{version}/%{name}-%{version}.tar.gz
+Source0:	https://github.com/JoesCat/gimp-fix-ca/archive/%{version}/gimp-fix-ca-%{version}.tar.gz
 
 BuildRequires:	autoconf
 BuildRequires:	automake
@@ -22,13 +22,11 @@ BuildRequires:  gtk+2-devel
 BuildRequires:  pkgconfig(gimp-2.0)
 Requires:       gimp >= 2.10.0
 
-
 %description
 A Gimp2 plug-in to correct Chromatic Aberration (CA).
 Fix-CA can fix Lateral CA caused due to light travelling through lenses,
 and fix Directional CA due to light travelling through dense material
 such as glass or water.
-
 
 %prep
 %setup -q
@@ -39,12 +37,13 @@ automake --add-missing
 %configure
 %make_build
 
+%check
+make check
 
 %install
 %make_install INSTALLDIR="%{buildroot}/%{plugindir}" \
       LOCALEDIR="%{buildroot}/%{_datadir}/locale"
 %find_lang %{moname}
-
 
 %files -f %{moname}.lang
 %license COPYING

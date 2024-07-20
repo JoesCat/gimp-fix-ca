@@ -6,13 +6,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        choiceL: [--disable-silent-rules, --enable-silent-rules --enable-debugtime]
+        choiceL: [--disable-silent-rules, --enable-silent-rules, --enable-debugtime]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Create configure
         run: |
           sudo apt-get update -y
-          sudo apt-get install autoconf automake libtool gcc libgimp2.0-dev
+          sudo apt-get install autoconf automake libtool gcc gimp libgimp2.0-dev
           autoreconf -i
           automake
       - name: Choose configure
@@ -22,6 +22,9 @@ jobs:
       - name: Test make strip
         if: matrix.choiceL == '--disable-silent-rules'
         run: make strip
+      - name: Do a make check
+        if: matrix.choiceL == '--enable-silent-rules'
+        run: make check
       - name: Test user-level install/uninstall
         if: matrix.choiceL == '--disable-silent-rules'
         run: |
@@ -50,7 +53,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - uses: msys2/setup-msys2@v2
         with:
           msystem: ${{ matrix.msystem }}
@@ -67,7 +70,7 @@ jobs:
   local:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Create configure
         run: |
           sudo apt-get update -y

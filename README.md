@@ -227,6 +227,7 @@ make install
 
 ## Version History
 
+- 4.1 (July 19, 2024) Upgraded code to work with 2.10.34 (broke in MSYS2). Fixed non-interactive scripting, added make check and updated other files for self-tests.
 - 4.0 (February 29, 2024) Upgraded code to use GIMP-2.10 API. Now Gimp-Fix-CA works with RGB/RGBA with precisions of 8bit, 16bit, 32bit, or double for each color of R,G,B,A. Also added Lens X/Y center and a lens centerline in the preview window. Local Language support now included for the installable Gimp-Fix-CA. This version is bumped to 4.0 since it requires GIMP-2.10.xx, and also because non-interactive scripting also requires Lateral Lens X/Y positions (default=-1,-1)
 - 3.0.4 (December 2, 2023) mostly edits around make system. Minimal mods to fix-ca.c code (which needs updating).
 - 3.0.3 (October 8, 2022) autoconf/automake/configure/make added for building fix.ca
