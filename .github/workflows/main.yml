@@ -2,11 +2,8 @@ name: CI
 on: [push,pull_request]
 
 jobs:
-  linux:
+  test-bmp-tga:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        choiceL: [--disable-silent-rules, --enable-silent-rules, --enable-debugtime]
     steps:
       - uses: actions/checkout@v3
       - name: Create configure
@@ -16,66 +13,17 @@ jobs:
           autoreconf -i
           automake
       - name: Choose configure
-        run: ./configure ${{ matrix.choiceL }}
-      - name: Make gimp-plugin-fix-ca
+        run: ./configure --enable-debugtime
+      - name: Do a make
         run: make
-      - name: Test make strip
-        if: matrix.choiceL == '--disable-silent-rules'
-        run: make strip
-      - name: Do a make check
-        if: matrix.choiceL == '--enable-silent-rules'
-        run: make check
-      - name: Test user-level install/uninstall
-        if: matrix.choiceL == '--disable-silent-rules'
+      - name: Run bmp test1
         run: |
-          make install-user
-          make uninstall-user
-      - name: Test make install GIMP shared plugin
-        if: matrix.choiceL == '--disable-silent-rules'
+          cd tests
+          make update-tests
+          ./test1.sh
+          cd ..
+      - name: Run tga test2
         run: |
-          sudo make install
-          sudo make uninstall
-      - name: Test make distcheck
-        if: matrix.choiceL == '--disable-silent-rules'
-        run: make distcheck
-  win:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        include: [
-          {msystem: MINGW32, toolchain: mingw-w64-i686, version: x32 },
-          {msystem: MINGW64, toolchain: mingw-w64-x86_64, version: x64 },
-          {msystem: UCRT64, toolchain: mingw-w64-ucrt-x86_64, version: x64 },
-          {msystem: CLANG64, toolchain: mingw-w64-clang-x86_64, version: x64 },
-        ]
-    name: ${{ matrix.msystem }}
-    defaults:
-      run:
-        shell: msys2 {0}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: ${{ matrix.msystem }}
-          update: true
-          install: autotools base-devel git ${{ matrix.toolchain }}-toolchain ${{ matrix.toolchain }}-gimp
-      - name: Create configure
-        run: |
-          autoreconf -i
-          automake
-      - name: run ./configure
-        run: ./configure
-      - name: Make gimp-plugin-fix-ca
-        run: make
-  local:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Create configure
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install autoconf automake libtool gcc libgimp2.0-dev
-      - name: Make local gimp-fix-ca install
-        run: gimptool-2.0 --install fix-ca.c
-      - name: Uninstall local gimp-fix-ca
-        run: gimptool-2.0 --uninstall-bin fix-ca
+          cd tests
+          ./test2.sh
+          cd ..

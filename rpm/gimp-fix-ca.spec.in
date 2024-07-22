@@ -34,7 +34,7 @@ such as glass or water.
 %build
 autoreconf -i
 automake --add-missing
-%configure
+%configure --enable-debugtime
 %make_build
 
 %check
