@@ -31,6 +31,12 @@
     ou CA direcional, onde a quantidade de CA é considerada a mesma em toda a
     imagem devido a luz viajando através de materiais densos, como vidro ou água.
     </p>
+    <p xml:lang="sv">
+    Denna insticksmodul hjälper användaren korrigera lateral kromatisk aberration
+    (CA) orsakad av att färger av olika våglängd passerar genom en lins, eller
+    direktionell CA där mängden CA antas vara densamma i hela bilden på grund av
+    att ljus passerar genom material såsom glas eller vatten.
+    </p>
   </description>
   <url type="homepage">https://github.com/JoesCat/gimp-fix-ca</url>
   <url type="help">https://github.com/JoesCat/gimp-fix-ca#readme</url>
