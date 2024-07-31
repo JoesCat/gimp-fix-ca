@@ -10,9 +10,9 @@ test_fix_ca_SOURCES = test-fix-ca.c
 test_fix_ca.$(OBJEXT): fix-ca-config.h
 test_fix_ca_LDADD   = ${LIBS} ${GIMP_LIBS} ${GTK_LIBS} ${WSLIB} ${FCA_LIB}
 
-update-tests:
+update-test1:
 	echo "#!/bin/sh" > ${builddir}/test1.sh; \
-	echo "rm -f ${builddir}/test1.tga" >> ${builddir}/test1.sh; \
+	echo "rm -f ${builddir}/test1.bmp" >> ${builddir}/test1.sh; \
 	echo "${GIMPTOOL} --install-script ${srcdir}/test-fix-ca.scm" >> ${builddir}/test1.sh; \
 	echo "${GIMPTOOL} --install-bin ${builddir}/test-fix-ca" >> ${builddir}/test1.sh; \
 	echo "gimp --verbose --console-messages -i -b '(test \"${top_srcdir}/img-fix-ca/full-branches.jpg\" \"${builddir}/test1.bmp\" 6.0 -2.4 658 1280 1 0.0 0.0 0.0 0.0)' -b '(gimp-quit 0)'" >> ${builddir}/test1.sh; \
@@ -24,9 +24,9 @@ update-tests:
 TESTS = ${builddir}/test1.sh
 
 test1.sh:
-	make update-tests
+	make update-test1
 
 clean-local:
 	rm -f ${builddir}/test?.sh ${builddir}/test?.bmp
 
-.PHONY: update-tests
+.PHONY: update-test1

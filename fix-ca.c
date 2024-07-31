@@ -108,8 +108,7 @@ static void	fix_ca_region (guchar *srcPTR, guchar *dstPTR,
 			       gint x1, gint x2, gint y1, gint y2,
 			       gboolean show_progress);
 static gboolean	fix_ca_dialog (gint32 drawable_ID, FixCaParams *params);
-//static void	preview_update (GimpPreview *preview, FixCaParams *params);
-static void	preview_update (GimpDrawablePreview *preview, FixCaParams *params);
+static void	preview_update (GtkWidget *widget, FixCaParams *params);
 static int	color_size (const Babl *format);
 static gdouble	get_pixel (guchar *ptr, gint bpc);
 static void	set_pixel (guchar *dest, gdouble d, gint bpc);
@@ -304,6 +303,7 @@ static void run (const gchar *name, gint nparams,
 			break;
 
 		case GIMP_RUN_WITH_LAST_VALS:
+			gimp_ui_init ("fix_ca", TRUE);
 			gimp_get_data (DATA_KEY_VALS, &fix_ca_params);
 			break;
 
@@ -614,9 +614,9 @@ static gboolean fix_ca_dialog (gint32 drawable_ID, FixCaParams *params)
 	return run;
 }
 
-//static void preview_update (GtkWidget *widget, FixCaParams *params)
-static void preview_update (GimpDrawablePreview *preview, FixCaParams *params)
+static void preview_update (GtkWidget *widget, FixCaParams *params)
 {
+	GimpDrawablePreview *preview;
 	GimpPreview *ptr;
 	gint32	preview_ID;
 	gint	b, i, j, x, y, width, height, xImg, yImg, bppImg, bpcImg, size;
@@ -625,8 +625,8 @@ static void preview_update (GimpDrawablePreview *preview, FixCaParams *params)
 	const Babl *format;
 	gdouble d;
 
-	/* GimpPreview is a subset of GimpScrolledPreview */
-	ptr = (GimpPreview *)(preview);
+	preview = GIMP_DRAWABLE_PREVIEW (widget);
+	ptr = GIMP_PREVIEW (preview);
 	gimp_preview_get_position (ptr, &x, &y);
 	gimp_preview_get_size (ptr, &width, &height);
 
