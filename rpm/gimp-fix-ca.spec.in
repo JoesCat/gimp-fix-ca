@@ -20,12 +20,12 @@ BuildRequires:	make
 BuildRequires:  gettext-devel
 BuildRequires:  gtk+2-devel
 BuildRequires:  pkgconfig(gimp-2.0)
-Requires:       gimp >= 2.10.0
+Requires:       gimp >= 2.10.0, gimp < 2.99.0
 
 %description
 A Gimp2 plug-in to correct Chromatic Aberration (CA).
-Fix-CA can fix Lateral CA caused due to light travelling through lenses,
-and fix Directional CA due to light travelling through dense material
+Fix-CA can fix Lateral CA caused due to light traveling through lenses,
+and fix Directional CA due to light traveling through dense material
 such as glass or water.
 
 %prep

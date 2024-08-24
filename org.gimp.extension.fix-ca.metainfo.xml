@@ -8,9 +8,9 @@
   <description>
     <p xml:lang="C">
     This extension helps the user correct Lateral Chromatic Aberration (CA) due
-    to different color wavelengths travelling through a lens, or Directional CA,
+    to different color wavelengths traveling through a lens, or Directional CA,
     where the amount of CA is assumed to be the same throughout the image due to
-    light travelling through dense material such as glass or water.
+    light traveling through dense material such as glass or water.
     </p>
     <p xml:lang="es">
     Esta extensión ayuda a corregir la aberración cromática lateral (CA) debido
@@ -44,6 +44,7 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0+</project_license>
   <releases>
+   <release version="4.2"   date="2024-08-24" />
    <release version="4.1"   date="2024-07-19" />
    <release version="4.0"   date="2024-02-29" />
    <release version="3.0.4" date="2023-12-02" />

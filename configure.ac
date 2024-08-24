@@ -21,7 +21,7 @@ AC_PREREQ([2.68])
 #
 m4_define([fix_ca_name], [gimp-fix-ca])
 m4_define([fix_ca_major_version], [4])
-m4_define([fix_ca_minor_version], [1])
+m4_define([fix_ca_minor_version], [2])
 m4_define([fix_ca_version],[fix_ca_major_version.fix_ca_minor_version])
 m4_define([fix_ca_package_name], [gimp-fix-ca])
 m4_define([fix_ca_package_home], [https://github.com/JoesCat/gimp-fix-ca])
@@ -53,6 +53,7 @@ AC_PROG_LN_S
 AC_PROG_MKDIR_P
 AC_PATH_PROG([CHMOD],[chmod],[:])
 AC_PATH_PROG([STRIP],[strip],[:])
+AC_PATH_PROG([GIMP],[gimp-2.10],[:])
 AC_PATH_PROG([GIMPTOOL],[gimptool-2.0],[:])
 AC_PATH_PROG([MD5SUM],[md5sum],[:])
 AC_PATH_PROG([MSGFMT],[msgfmt],[:])

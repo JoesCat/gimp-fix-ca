@@ -15,7 +15,7 @@ update-test1:
 	echo "rm -f ${builddir}/test1.bmp" >> ${builddir}/test1.sh; \
 	echo "${GIMPTOOL} --install-script ${srcdir}/test-fix-ca.scm" >> ${builddir}/test1.sh; \
 	echo "${GIMPTOOL} --install-bin ${builddir}/test-fix-ca" >> ${builddir}/test1.sh; \
-	echo "gimp --verbose --console-messages -i -b '(test \"${top_srcdir}/img-fix-ca/full-branches.jpg\" \"${builddir}/test1.bmp\" 6.0 -2.4 658 1280 1 0.0 0.0 0.0 0.0)' -b '(gimp-quit 0)'" >> ${builddir}/test1.sh; \
+	echo "${GIMP} --verbose --console-messages -i -b '(test \"${top_srcdir}/img-fix-ca/full-branches.jpg\" \"${builddir}/test1.bmp\" 6.0 -2.4 658 1280 1 0.0 0.0 0.0 0.0)' -b '(gimp-quit 0)'" >> ${builddir}/test1.sh; \
 	echo "${GIMPTOOL} --uninstall-bin test-fix-ca" >> ${builddir}/test1.sh; \
 	echo "${GIMPTOOL} --uninstall-script test-fix-ca.scm" >> ${builddir}/test1.sh; \
 	echo "${MD5SUM} -c ${top_srcdir}/tests/test1.md5" >> ${builddir}/test1.sh; \
