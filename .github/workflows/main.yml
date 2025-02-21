@@ -8,7 +8,7 @@ jobs:
       matrix:
         choiceL: [--disable-silent-rules, --enable-silent-rules, --enable-debugtime]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Create configure
         run: |
           sudo apt-get update -y
@@ -53,12 +53,12 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: msys2/setup-msys2@v2
         with:
           msystem: ${{ matrix.msystem }}
           update: true
-          install: autotools base-devel git ${{ matrix.toolchain }}-toolchain ${{ matrix.toolchain }}-gimp
+          install: autotools base-devel git ${{ matrix.toolchain }}-toolchain ${{ matrix.toolchain }}-gimp2
       - name: Create configure
         run: |
           autoreconf -i
@@ -70,7 +70,7 @@ jobs:
   local:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Create configure
         run: |
           sudo apt-get update -y

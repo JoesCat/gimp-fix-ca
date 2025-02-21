@@ -729,7 +729,7 @@ static gdouble get_pixel (guchar *ptr, gint bpc)
 		uint64_t *p = (uint64_t *)(ptr);
 		long double lret = 0.0;
 		lret += *p;
-		lret /= 18446744073709551615L;
+		lret /= 18446744073709551615UL;
 		ret = lret;
 	} else if (bpc == -8) {
 		double *p = (double *)(ptr);
@@ -758,7 +758,7 @@ static void set_pixel (guchar *dest, gdouble d, gint bpc)
 		*p = round(d * 4294967295);
 	} else if (bpc == 8) {
 		uint64_t *p = (uint64_t *)(dest);
-		*p = roundl(d * 18446744073709551615L);
+		*p = roundl(d * 18446744073709551615UL);
 	} else if (bpc == -8) {
 		double *p = (double *)(dest);
 		*p = d;
